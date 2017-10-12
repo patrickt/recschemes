@@ -88,7 +88,7 @@ fastPretty (In Call { func = "id" })
            Call {args = [theArg]} = theArg
 fastPretty _ (Call f as)     = f <> P.parens (P.cat (P.punctuate ", " as))
 
--- uninteresting cases omitted, blah blah blah
+-- uninteresting cases below, blah blah blah
 fastPretty _ (Index it idx)  = it <> P.brackets idx
 fastPretty _ (Unary op it)   = P.text op <> it
 fastPretty _ (Binary l op r) = l <> P.text op <> r
