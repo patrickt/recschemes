@@ -14,7 +14,9 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Part1
+                       Part2
   build-depends:       base >= 4.7 && < 5
+                     , pretty
   default-language:    Haskell2010
 
 test-suite recschemes-test
@@ -22,6 +24,7 @@ test-suite recschemes-test
   hs-source-dirs:      test
   main-is:             Spec.hs
   other-modules:       Part1Spec
+                       Part2Spec
   build-depends:       base
                      , recschemes
                      , hspec
