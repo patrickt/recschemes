@@ -10,7 +10,12 @@
 
 module Part3
   ( para
+  , para'
+  , para''
   , apo
+  , fastPretty
+  , Term (..)
+  , Expr (..)
   ) where
 
 import           Control.Arrow
