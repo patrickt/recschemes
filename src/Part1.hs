@@ -11,6 +11,8 @@ module Part1
   , flatten''
   ) where
 
+-- Check Part1Spec.hs for test cases that verify correctness.
+
 import           Control.Arrow
 
 data Lit
