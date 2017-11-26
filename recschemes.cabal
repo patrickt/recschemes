@@ -23,6 +23,16 @@ library
                      , random
   default-language:    Haskell2010
 
+executable mungehtml
+  hs-source-dirs:      munge
+  build-depends:       base >= 4.7 && < 5
+                     , xml-conduit
+                     , xml-lens
+                     , lens
+                     , html-conduit
+  main-is:             Main.hs
+  default-language:    Haskell2010
+
 test-suite recschemes-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
