@@ -1,11 +1,12 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Part1
   ( Expr (..)
   , Lit (..)
   , Term (..)
   , Expr' (..)
-  , out
   , flatten
   , flatten'
   , flatten''
@@ -79,10 +80,13 @@ data Expr' a
   | Literal' Lit
   deriving (Show, Eq, Functor)
 
-newtype Term f = In (f (Term f))
+newtype Term f = In { out :: f (Term f) }
 
-out :: Term f -> f (Term f)
-out (In t) = t
+
+-- These instances are pretty sinful, but we'll use them for now
+-- rather than complicating things with Eq1 and Show1.
+deriving instance (Eq (f (Term f))) => Eq (Term f)
+deriving instance (Show (f (Term f))) => Show (Term f)
 
 bottomUp :: Functor a => (Term a -> Term a) -> Term a -> Term a
 bottomUp fn =

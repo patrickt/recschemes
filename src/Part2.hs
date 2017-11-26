@@ -3,6 +3,8 @@
 
 module Part2
   ( Expr (..)
+  , Algebra
+  , Coalgebra
   , call
   , cata
   , countNodes
@@ -11,6 +13,7 @@ module Part2
   )
   where
 
+import           Part1 (Term (..))
 import           Control.Arrow    hiding (left, right)
 import           Data.Monoid
 import           Text.PrettyPrint (Doc)
@@ -25,8 +28,6 @@ data Expr a
   | Call    { func :: a, args :: [a] }
   | Paren   { target :: a }
   deriving (Show, Eq, Functor)
-
-newtype Term f = In { out :: f (Term f) }
 
 ten, add, call :: Term Expr
 ten  = In (Literal { intVal = 10 })

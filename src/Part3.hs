@@ -5,8 +5,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE RecordWildCards      #-}
-{-# LANGUAGE StandaloneDeriving   #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Part3
   ( para
@@ -16,21 +14,17 @@ module Part3
   , fastPretty
   , Term (..)
   , Expr (..)
+  , RAlgebra
+  , RCoalgebra
   ) where
 
+import           Part1 (Term (..))
 import           Control.Arrow
 import           Data.Function
 import           Data.Monoid
 import           Data.String
 import           Text.PrettyPrint (Doc)
 import qualified Text.PrettyPrint as P
-
-newtype Term f = In { out :: f (Term f) }
-
--- These instances are pretty sinful, but we'll use them for now
--- rather than complicating things with Eq1 and Show1.
-deriving instance (Eq (f (Term f))) => Eq (Term f)
-deriving instance (Show (f (Term f))) => Show (Term f)
 
 type RAlgebra f a = f (Term f, a) -> a
 

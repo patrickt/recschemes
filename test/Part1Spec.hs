@@ -1,17 +1,9 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE StandaloneDeriving   #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes  #-}
 
 module Part1Spec (spec) where
 
 import           Part1
 import           Test.Hspec
-
--- These instances are pretty sinful, but we'll use them for now
--- rather than complicating things with Eq1 and Show1.
-deriving instance (Eq (f (Term f))) => Eq (Term f)
-deriving instance (Show (f (Term f))) => Show (Term f)
 
 spec :: Spec
 spec = do
