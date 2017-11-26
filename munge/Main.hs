@@ -17,8 +17,5 @@ main = do
   args <- getArgs
   when (null args) (die "expected argument")
   contents <- readFile (head args)
-  let modified = contents & root.entire.named "pre" %~ twiddle
+  let modified = contents & root.entire.named "pre".attribute "data-language" ?~ "haskell"
   writeFile def (head args) modified
-
-twiddle :: Element -> Element
-twiddle x = (traceShowId x) & attribute "data-language" ?~ "haskell"
