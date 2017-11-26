@@ -8,7 +8,7 @@ Though we've only just begun our dive into \emph{Bananas, Lenses, Envelopes, and
 {[}We{]} argue that even these schemes are helpful for a declaratively thinking programmer and program reasoner who loves languages of programming and program reasoning where programs and proofs of properties of programs are easy to write and read.
 \end{quote}
 
-That sure sounds like us. Let's get going.
+That sure sounds like us. Let's get going. This article is literate Haskell; you can find the source code \href{https://github.com/patrickt/recschemes/blob/master/src/Part4.lhs}{here}.
 
 % Now we take care of the Haskell stuff.
 
