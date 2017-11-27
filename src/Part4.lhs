@@ -33,8 +33,18 @@ That sure sounds like us. Let's get going. This article is literate Haskell; you
 {-# LANGUAGE OverloadedStrings    #-}
 
 module Part4
-  ( change )
-  where
+  ( Attr (..)
+  , Cent
+  , CoAttr (..)
+  , CVAlgebra
+  , CVCoalgebra
+  , Nat (..)
+  , coins
+  , change
+  , compress
+  , futu
+  , histo
+  ) where
 import           Part1                  (Term (..))
 import           Part2
 import           Part3                  (RAlgebra, RCoalgebra)
@@ -480,7 +490,7 @@ type \texttt{Int}.
 
 \begin{code}
   -- equivalent to Nat (Attr Nat Int) -> Int
-  go :: Nat (Attr Nat Int) -> Int
+  go :: CVAlgebra Nat Int
 \end{code}
 
 Because \texttt{histo} applies its algebra from leaf-to-root, it starts
