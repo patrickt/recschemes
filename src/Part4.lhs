@@ -1,11 +1,25 @@
 \long\def\ignore{}
 
-Though we've only just begun our dive into \emph{Bananas, Lenses, Envelopes, and Barbed Wire}, the next natural step in understanding recursion schemes brings us outside its purview. We must turn our attention to a paper written seven years later---\href{http://cs.ioc.ee/~tarmo/papers/inf99.pdf}{\emph{Primitive(Co)Recursion and Course-of-Value (Co)Iteration, Categorically}}, by Tarmo Uustalu and Varmo Vene. \emph{Primitive (Co)Recursion} explores and formalizes the definition of apomorphisms (introduced first by Meijer et. al, and which we discussed, briefly, in the \href{http://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/}{previous installment}) and describes two new recursion schemes, the \emph{histomorphism} and the \emph{futumorphism}.
+Though we've only just begun our dive into \emph{Bananas, Lenses, Envelopes, and Barbed Wire},
+the next natural step in understanding recursion schemes brings us outside its purview.
+We must turn our attention to a paper written seven years later---
+\href{http://cs.ioc.ee/~tarmo/papers/inf99.pdf}{\emph{Primitive(Co)Recursion and Course-of-Value (Co)Iteration, Categorically}},
+by Tarmo Uustalu and Varmo Vene. \emph{Primitive (Co)Recursion} explores and formalizes the definition of apomorphisms
+(introduced first by Meijer et. al, and which we discussed, briefly, in the
+\href{http://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/}{previous installment})
+and describes two new recursion schemes, the \emph{histomorphism} and the \emph{futumorphism}.
 
-\emph{Primitive (Co)Recursion} is a wonderful and illuminating paper, but it is dense in its concepts for those unfamiliar with category theory, and uses the semi-scrutable bracket syntax introduced by \emph{Bananas}. But there's no need for alarm if category theory isn't your cup of tea: Haskell allows us, once again, to express elegantly the new recursion schemes defined in \emph{Primitive (Co)Recursion}. Guided by Uustalu and Vene's work, we'll derive these two new recursion schemes and explore their ways in which they simplify complicated folds and unfolds. Though these new morphisms are, definition-wise, simple variations on paramorphisms and apomorphisms, in practice they provide surprising power and clarity, as Uustalu and Vene assert:
+\emph{Primitive (Co)Recursion} is a wonderful and illuminating paper, but it is dense in its concepts
+for those unfamiliar with category theory, and uses the semi-scrutable bracket syntax introduced by \emph{Bananas}.
+But there's no need for alarm if category theory isn't your cup of tea: Haskell allows us, once again, to express
+elegantly the new recursion schemes defined in \emph{Primitive (Co)Recursion}. Guided by Uustalu and Vene's work,
+we'll derive these two new recursion schemes and explore their ways in which they simplify complicated folds and
+unfolds. Though these new morphisms are, definition-wise, simple variations on paramorphisms and apomorphisms,
+in practice they provide surprising power and clarity, as Uustalu and Vene assert:
 
 \begin{quote}
-{[}We{]} argue that even these schemes are helpful for a declaratively thinking programmer and program reasoner who loves languages of programming and program reasoning where programs and proofs of properties of programs are easy to write and read.
+{[}We{]} argue that even these schemes are helpful for a declaratively thinking programmer and program reasoner
+who loves languages of programming and program reasoning where programs and proofs of properties of programs are easy to write and read.
 \end{quote}
 
 That sure sounds like us. Let's get going. This article is literate Haskell; you can find the source code \href{https://github.com/patrickt/recschemes/blob/master/src/Part4.lhs}{here}.
@@ -229,7 +243,7 @@ we defined \texttt{cata} and \texttt{para}, so let's start defining it:
 
 \begin{verbatim}
 histo :: Functor f => CVAlgebra f a -> Term f -> a
-histo h = out >>> fmap worker >>> h 
+histo h = out >>> fmap worker >>> h
 \end{verbatim}
 
 But what type should the worker have? Well, we can ask GHC, thanks to
@@ -244,7 +258,7 @@ use this feature nearly every day.)
 
 \begin{verbatim}
 histo :: Functor f => CVAlgebra f a -> Term f -> a
-histo h = out >>> fmap _worker >>> h 
+histo h = out >>> fmap _worker >>> h
 \end{verbatim}
 
 Running this code in GHC yields the following type-hole message:
@@ -465,7 +479,7 @@ CV-algebra will have as its carrier functor \texttt{Nat} and its result
 type \texttt{Int}.
 
 \begin{code}
-  -- equivalent to Nat (Attr Nat Int) -> Int  
+  -- equivalent to Nat (Attr Nat Int) -> Int
   go :: Nat (Attr Nat Int) -> Int
 \end{code}
 
@@ -721,7 +735,7 @@ futu f = In <<< fmap worker <<< f where
     worker (Automatic a) = futu f a        -- continue through this level
     worker (Manual g) = In (fmap worker g) -- omit folding this level,
                                            -- delegating to the worker
-                                           -- to perform any needed 
+                                           -- to perform any needed
                                            -- unfolds later on.
 \end{code}
 
@@ -776,7 +790,7 @@ Let's define a few rules for how a plant is generated. (These should, as
 I mentioned above, remind us of the rules for tree automata.)
 
 \begin{verbatim}
-1. Plants begin at the ground. 
+1. Plants begin at the ground.
 2. Every plant has a maximum height of 10.
 3. Plants choose randomly whether to fork, grow, or bloom.
 4. Every fork will contain one immediate bloom and two further stems.
@@ -812,7 +826,7 @@ random number from 1 to 5: if it's 1 then we'll choose to
 otherwise we'll choose to grow \texttt{Upwards}. (Feel free to change
 these values around and see the difference in the generated plants.) The
 \texttt{Int} determining the height of the plant is incremented every
-time \texttt{grow} is called. 
+time \texttt{grow} is called.
 
 \begin{code}
 grow :: Seed -> (Action, Seed, Seed)
@@ -929,7 +943,7 @@ sow seed =
 \ignore{
 \begin{code}
 -- I can't find the original implementation I had of this function. I will
--- do it more properly later.  
+-- do it more properly later.
 render :: Algebra Plant Box
 render Bloom    = "8"
 render (Root a) = vcat center1 ["X", a]
@@ -965,8 +979,8 @@ we've just generated, with little flowers.
 └─┘     |         |
  |      |          |       ⚘
  |  ⚘   |          |       |
- └─────┘          |   ⚘   | 
-    |              └──────┘ 
+ └─────┘          |   ⚘   |
+    |              └──────┘
     |        ⚘        |
     └───────────────┘
              |
