@@ -16,8 +16,8 @@ import Numeric.Natural
 \end{code}
 }
 
-In an effort to publish more than once a year, I've decided to write about smaller topics. Today's topic of
-discussion is the notion of a `base functor', and how the popular
+In an effort to publish more than one blog post a year, I've decided to write about smaller topics.
+Today I'm going to talk about the notion of a `base functor', and how the popular
 \href{https://hackage.haskell.org/package/recursion-schemes}{recursion-schemes} library uses base functors to
 make recursion schemes more elegant and ergonomic in practice.
 
@@ -37,13 +37,13 @@ data Expr
 \end{verbatim}
 
 to this—the same data type, but of kind\footnote{If you're not familiar with the notion of a `kind', you can
-  think about the kind of a data type \texttt{t} as a measure of how many arguments it takes. Our \texttt{Expr}
+  think (loosely) about the kind of a data type \texttt{t} as a measure of how many arguments it takes. Our \texttt{Expr}
   type takes no arguments, so its kind is "star": \texttt{*}. A data type that takes one argument has kind `star
   to star', \texttt{* -> *}. A data type that takes three arguments, like \texttt{Either}, has
   kind \texttt{* -> * -> *}. The high-level description of a kind is `the type of a type', but you can think
   about them as merely providing information as to the parameters taken, if any, by a data type. (The \texttt{:k})
-  directive in GHCi provides information on the kind of the provided type.} \texttt{* -> *}, with all recursive
-occurrences of the \texttt{Expr} type replaced with the type variable \emph{a}:
+  directive in GHCi provides information on the kind of any type or typeclass you provide.} \texttt{* -> *}, with all recursive
+occurrences of the \texttt{Expr} type replaced with the type variable \texttt{a}:
 
 \begin{code}
 data ExprF a
@@ -64,9 +64,7 @@ newtype Term f = In { out :: f (Term f) }
 type Expr = ExprF (Term ExprF)
 \end{code}
 
-Similarly, in part 4 we represented the natural numbers with a data type of kind \texttt{* -> *}
-
-TODO: explain kind
+Similarly, in part 4 we represented the natural numbers with a data type of kind \texttt{* -> *}:
 
 \begin{code}
 data Nat a
@@ -97,7 +95,7 @@ data [] a = a : [a]
 
 Certainly \texttt{cata}, the fundamental right-fold operation, should be able to support folding over this structure: after all, it's of kind \texttt{* -> *}. But if we apply \emph{Term} to this data type, we run into trouble quite quickly: we \emph{lose the ability to store elements in a list}. The type variable \texttt{a} can only hold nested \texttt{Term a} values: there is no place we can actually store list elements. This is, as you can tell, not particularly useful.
 
-Now, of course, we can do our standard song-and-dance routine, converting \emph{[a]} into a type where its recursive element is replaced by a new type variable to represent recursive occurrences (the \texttt{[a]} in the \texttt{(:)} constructor:)
+Now, of course, we can do our standard song-and-dance routine, converting \texttt{[a]} into a type where its recursive element is replaced by a new type variable to represent recursive occurrences (the \texttt{[a]} in the \texttt{(:)} constructor:)
 
 \begin{code}
 data ListF a b
@@ -128,7 +126,17 @@ The purpose of the \texttt{Base} type family is to tie together a standard Haske
 type family Base t :: * -> *
 \end{code}
 
-The kind signature there indicates that, whenever you pass in a concrete type as the variable \texttt{t}, you will yield a data type parameterized with one additional variable. This corresponds to our experience with \texttt{ExprF} and \texttt{List}: \texttt{Expr} went from kind \texttt{*} to \texttt{* -> *}, and \texttt{[a]} went from kind \texttt{* -> *} to \texttt{* -> * -> *}.
+While a full-fledged tutorial on type families is beyond the scope of this post (the best such reference is the \href{https://wiki.haskell.org/GHC/Type_families}{GHC wiki}), we can think of type families as a way to write functions on the type-level. If we were to declare a type family, and an instance of this family (analogous to an instance of a typeclass):
+
+\begin{verbatim}
+type family Something t
+
+type instance Something Foo = Bar
+\end{verbatim}
+
+then anywhere we encounter the invocation \texttt{Something Foo} the GHC type system will resolve that to \texttt{Bar}. While this may seem unnecessary—if you mean \texttt{Bar}, why not just write \texttt{Bar}?—it provides us a rich facility with which to \emph{associate} a type with another.
+
+Look at the definition of \texttt{Base} again. The kind signature there indicates that, whenever you pass in a concrete type as the variable \texttt{t}, you will yield a data type parameterized with one additional variable. This corresponds to our experience with \texttt{ExprF} and \texttt{List}: \texttt{Expr} went from kind \texttt{*} to \texttt{* -> *}, and \texttt{[a]} went from kind \texttt{* -> *} to \texttt{* -> * -> *}.
 
 The \texttt{Base} type family doesn't tell us much on our own. The most illustrative path open to us is to look at an instance declared with \texttt{Base}.
 
@@ -198,18 +206,18 @@ class Functor (Base t) => Recursive t where
 
 Note that the \texttt{cata} function is given a default definition. If you had some magic data type
 that admitted a faster \texttt{cata} than the default implementation, you could override it—however,
-I struggle to think of a type which would admit a custom \texttt{cata}. 
+I struggle to think of a type which would admit a custom \texttt{cata}.
 
 Contained inside the \texttt{Recursive} class are other useful folds—\texttt{para}, the paramorphism,
 which we discussed in part 3, and ones we haven't covered yet—the generalized paramorphism \texttt{gpara}
 and Fokkinga's prepromorphism \texttt{prepro}. (We will discuss these in a future installment).
 
-Note that the Base type is constrained in Recursive instances: \texttt{t} must have a \emph{Base} instance,
-and the \emph{Base} instance for \texttt{t} must be a \texttt{Functor}. Since \texttt{cata} is defined
+Note that the Base type is constrained in Recursive instances: \texttt{t} must have a \texttt{Base} instance,
+and the \texttt{Base} instance for \texttt{t} must be a \texttt{Functor}. Since \texttt{cata} is defined
 in terms of a recursive invocation with \texttt{fmap}, we need a useful \texttt{fmap} function over any
 \texttt{Base} instance to have a \texttt{cata} that typechecks.
 
-Thanks to the \emph{Recursive} typeclass, we can deal in simple data types—\texttt{[a]} rather than
+Thanks to the \texttt{Recursive} typeclass, we can deal in simple data types—\texttt{[a]} rather than
 \texttt{ListF}, \texttt{Expr} rather than \texttt{ExprF}—while retaining the expressive folding power
 granted by paramterized data types. This is cool as hell. This technique is used in other libraries,
 such as José Pedro Magalhães's \href{https://hackage.haskell.org/package/regular/docs/Generics-Regular-Base.html#t:PF}{\texttt{regular}}.
@@ -245,7 +253,7 @@ Thanks to the magic of Template Haskell, \texttt{recursion-schemes} can generate
 
 \begin{verbatim}
 import Data.Functor.Foldable.TH
- 
+
 data Expr
   = Index Expr Expr
   | Call Expr [Expr]
@@ -279,7 +287,7 @@ instance Recursive Expr where
 \end{verbatim}
 
 This is clearly the result of applying the aforementioned algorithm to our \texttt{Expr} type. To avoid
-name collisions, constructor names are suffixed with an 'F'. (Infix operators are suffixed with a '$').
+name collisions, constructor names are suffixed with an `F'. (Infix operators are suffixed with a `\$').
 
 The inclusion of these Template Haskell splices means that you, the programmer, can pick up the
 \texttt{recursion-schemes} library with a minimum of fuss and boilerplate. This is, in my experience writing
@@ -300,7 +308,7 @@ class Functor (Base t) => Corecursive t where
 
 We've already reversed the arrows and generated \texttt{ana} from \texttt{cata}. The only thing left to
 do is reverse the arrows in \texttt{project}, yielding \texttt{embed}—rather than going from a \texttt{t} to
-a \emph{Base} functor, as \texttt{project} does, we go from a \texttt{Base} functor to a \texttt{t}.
+a \texttt{Base} functor, as \texttt{project} does, we go from a \texttt{Base} functor to a \texttt{t}.
 
 As with \texttt{cata}, \texttt{ana} is defined in terms of \texttt{fmap} and \texttt{embed}:
 
@@ -316,13 +324,12 @@ class Functor (Base t) => Corecursive t where
 
 Instances for \texttt{embed} are similarly straightforward:
 
-\ignore{
-\begin{code}
+\begin{verbatim}
 instance Corecursive [a] where
   embed (Cons x xs) = x:xs
   embed Nil = []
-\end{code}
-}
+\end{verbatim}
+
 
 In practice, you won't need to write your own \texttt{Corecursive} instances, as \texttt{makeBaseFunctor}
 creates both \texttt{Recursive} and \texttt{Corecursive} instances.
@@ -340,7 +347,7 @@ cata f = out >>> fmap (cata f) >>> f
 \end{verbatim}
 
 By contrast, Kmett's \texttt{cata} uses a where-clause to capture \texttt{cata f} with a specific name,
-\texttt{c}. 
+\texttt{c}.
 
 \begin{verbatim}
 cata :: (Base t a -> a) -> t -> a
@@ -352,7 +359,7 @@ the name \texttt{c} appears unnecessary, given that you can just pass \texttt{ca
 It took several years before I inferred the reason behind this—GHC generates more efficient code if you
 avoid partial applications. Partially-applied functions must carry their arguments along with them,
 forcing their evaluation process to dredge up the applied arguments and call them when invoking the function.
-whereas bare functions are much simpler to invoke.
+whereas bare functions are much simpler to invoke. (For more of the gory details, you can consult the GHC wiki page on the representation of \href{https://ghc.haskell.org/trac/ghc/wiki/Commentary/Rts/Storage/HeapObjects}{heap objects}).
 
 Bearing this implementation detail in mind, this formulation of \texttt{cata} is quite elegant: by naming
 \texttt{cata f}, we can reference it not as a partially applied function, but as a regular function.
@@ -361,8 +368,8 @@ doesn't matter much, but given that \texttt{cata} is invoked on every iteration 
 
 \subsubsection{That's All}\label{thats-all}
 
-I owe thanks to Rob Rix, whose advice is always helpful, and \href{https://twitter.com/stdlib}{Austin Seipp},
-who checked my statements about GHC code generation for accuracy.
+I owe thanks to Edward Kmett, whose \texttt{recursion-schemes} library is magnificent and inspiring, and to
+Austin Seipp, who checked my statements about GHC code generation for accuracy.
 
 I'm hoping to be done with the next proper installment of this series within the next couple of weeks. (This
-one covers hylomorphisms and chronomorphisms.) 
+one covers hylomorphisms and chronomorphisms.) Until then, thank you for reading.
