@@ -23,6 +23,7 @@ import Data.Maybe
 import Data.Char
 import Text.Read (readMaybe)
 import Data.Monoid
+import Debug.Trace
 \end{code}
 }
 
@@ -269,12 +270,17 @@ We can build \texttt{hylo} just out of the algebra and coalgebra itself.
 
 \begin{code}
 hylo' :: Functor f => Algebra f b -> Coalgebra f a -> a -> b
-hylo' alg coalg = coalg >>> fmap (hylo alg coalg) >>> alg
+hylo' alg coalg = coalg >>> fmap (hylo' alg coalg) >>> alg
 \end{code}
 
-This definition is more efficient than the prior definition, as it involves fewer calls to
-\texttt{fmap}, but it's slightly less indicative of the fact that a hylomorphism is the composition
-of \texttt{cata} and \texttt{ana}.
+Though this definition is arguably less indicative of the fact that a hylomorphism is the composition of an
+an anamorphism and catamorphism, it bears a compelling property: it entails half as many calls to \texttt{fmap}
+as does the previous definition. Our original \texttt{hylo} unfolded our \texttt{List} to its maximum extent,
+entailing O(n) calls to \texttt{fmap}, where n is the number of tokens passed to \texttt{rpn}. Subsequently,
+that structure is torn down with \texttt{cata}, using an additional O(n) calls to fmap. In contrast, this new
+definition of \texttt{hylo} only recurses O(n) rather than O(2n) times: as soon as the unfolding completes and
+the recursive \texttt{fmap} invocations bottom out, the generated structure is passed directly to \texttt{alg}.
+This is a significant optimization!
 
 Though Meijer et al. introduced the hylomorphism along with the catamorphism and anamorphism,
 Uustalu and Vene's paper does not mention what happens when you compose a histomorphism and
