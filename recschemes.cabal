@@ -21,6 +21,7 @@ library
                        Part5
   build-depends:       base >= 4.7 && < 5
                      , boxes
+                     , containers
                      , pretty
                      , random
   default-language:    Haskell2010
