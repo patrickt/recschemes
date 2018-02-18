@@ -80,6 +80,11 @@ The `hylo' in `hylomorphism' comes from the Greek \emph{hyle}, ὕλη, meaning 
 `matter' to mean the substance out of which an object is formed (`morpho`); as such, we can read
 `hylomorphism' as a function that forms a result object out of some intermediate, constituent matter.
 
+Something interesting to note is that \texttt{hylo} in no way involves \texttt{Term}, the fixed point of a
+\texttt{Functor}. We neither pass in nor recieve an infinite data structure: our unfold generates a
+standard \texttt{Functor}, and our fold consumes it. (Of course, your input \texttt{a} or your output
+\texttt{b} could be a \texttt{Term} over some \texttt{Functor}. But it doesn't have to be.)
+
 \subsubsection{Highs, Lows, and \texttt{hylo}}
 
 The hylomorphism is more than an elegant result—it generalizes many computations that we as programmers
@@ -528,9 +533,10 @@ Dually, we can think of Elgot coalgebras as hylomorphisms built out of an \textt
 \texttt{RCoalgebra}:
 
 \begin{code}
-hylo'' :: Functor f => RAlgebra f b -> RCoalgebra f a -> a -> b
-hylo'' ralg rcoalg = apo rcoalg >>> para ralg
+rhylo :: Functor f => RAlgebra f b -> RCoalgebra f a -> a -> b
+rhylo ralg rcoalg = apo rcoalg >>> para ralg
 \end{code}
 
 As far as I can tell, there is no separate name for this construction; I'd refer to it as an
 ``R-hylomorphism'', which has a ring to it. (If you know the name for this construction, drop me a line.)
+I leave the deforestation stage, analogous to \texttt{hylo}, as an exercise for the reader.
