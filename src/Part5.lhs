@@ -9,10 +9,12 @@
 module Part5
   ( Token (..)
   , List (..)
+  , Result (..)
   , parseRPN
   , evalRPN
   , rpn
   , chrono
+  , safeRPN
   ) where
 
 import Part1 (Term (..))
@@ -481,9 +483,84 @@ elgot :: Functor f => Algebra f b -> (a -> Either b (f a)) -> a -> b
 elgot alg coalg = coalg >>> (id ||| (fmap (elgot alg coalg) >>> alg))
 \end{code}
 
-By using \texttt{|||} to handle the Either case: performing \texttt{id} (no operation) on a \texttt{Left}
-value and recursing on a \texttt{Right} value, we gain a clarity of definition—but more importantly, we
-make it easy to `reverse the arrows'. Every time we reverse the arrows on a fold, we yield the corresponding
+Let's use an Elgot algebra to bring some sense of safety to our above RPN calculator. Calling \texttt{error}
+on invalid input is a bad look: this is Haskell, and we can do better. Let's start by writing a custom type
+to represent success and failure.
+
+\begin{code}
+data Result
+  = Success Stack
+  | ParseError String
+  | TooFewArguments Stack
+    deriving (Eq, Show)
+
+\end{code}
+
+As with the previous incarnation of this function, we'll use continuation-passing style, but instead of
+a function over \texttt{Stack}s, our continuation will handle \texttt{Result}s. We're gonna be mentioning
+functions of type \texttt{Result -> Result} a few times here, so we'll make a type alias for it.
+
+\begin{code}
+type Cont = Result -> Result
+\end{code}
+
+We'll start by rewriting \texttt{parseToken}
+
+\begin{code}
+safeToken :: String -> Either Cont Token
+safeToken "+" = Right (Op (+))
+safeToken "-" = Right (Op (-))
+safeToken "*" = Right (Op (*))
+safeToken "/" = Right (Op div)
+safeToken str = case readMaybe str of
+  Just num -> Right (Lit num)
+  Nothing  -> Left  (const (ParseError str))
+
+safeParse :: String -> Either Cont (List Token String)
+safeParse ""  = return Nil
+safeParse str = do
+  let (x, rest) = span (not . isSpace) str
+  let newSeed   = dropWhile isSpace rest
+  parsed <- safeToken x
+  return $ Cons parsed newSeed
+
+safeEval :: Algebra (List Token) Cont
+safeEval (Cons (Lit i) cont) (Success stack) = cont (Success (i : stack))
+safeEval (Cons (Op fn) cont) (Success s)     = cont $ case s of
+  (a:b:rest) -> Success (fn b a : rest)
+  _          -> TooFewArguments s
+safeEval _ result  = result
+
+\end{code}
+
+We have to make our pattern-matching slightly more specific—we have to match on \texttt{Success} values
+to get a stack out of them—but we can also remove the call to \texttt{error} in this function. When handling
+an arithmetic operation, if there are too few values on the stack to proceed, we call the continuation with
+a \texttt{TooFewArguments} value. That's two uses of \texttt{error} removed—a victory in the struggle against
+partial functions and runtime crashes! Furthermore, the error handling becomes tacit in the definition of
+\texttt{safeParse}: no case statements or calls to \texttt{throw} are required, as the do-notation over
+\texttt{Either} handles the \texttt{Left} case for us.
+
+Invoking these functions is just as simple as it was when we used \texttt{hylo}. We replace \texttt{hylo}
+with \texttt{elgot}, and pass an empty \texttt{Success} value to evaluate the continuation left-to-right
+over the provided string.
+
+\begin{code}
+safeRPN :: String -> Result
+safeRPN s = elgot safeEval safeParse s (Success [])
+\end{code}
+
+Other examples of using Elgot algebras are few and far between, but the excellent Vanessa McHale has an
+example of them on \href{http://blog.vmchale.com/article/elgot-performance}{her blog}, in which she uses them to
+calculate the \href{https://esolangs.org/wiki/Collatz_sequence}{Collatz sequence} of a provided integer,
+yielding performance comparable to an imperative, lower-level Rust implementation.
+
+\subsubsection{Reversing the Arrows, Again}
+
+In the defintion of \texttt{elgot} above,  we used \texttt{|||} to handle the Either case: in performing
+\texttt{id} (no operation) on a \texttt{Left}
+value and recursing on a \texttt{Right} value, we gained a clarity of definition—but more importantly, we
+make it easy to reverse the arrows. Every time we reverse the arrows on a fold, we yield the corresponding
 unfold: but here, reversing the arrows on an Elgot coalgebra, we yield a hylomorphism that can short-circuit
 during \emph{destruction}, rather than construction.
 
@@ -517,7 +594,8 @@ coelgot :: Functor f => ((a, f b) -> b) -> (a -> f a) -> a -> b
 Our algebra, which previously took an \texttt{f b}, now takes a tuple—\texttt{(a, f b)}. That \texttt{a} is
 the same \texttt{a} used to generate the \texttt{f b} we are examining. The `shortcut' behavior here is
 slightly more subtle than that present in the definition of \texttt{elgot}—it depends on Haskell's call-by-need
-semantics.
+semantics. If we never observe the second element of the tuple—the \texttt{f b}—it will never be evaluated,
+and as such neither will any of the computations used to construct it.
 
 By replacing \texttt{a -> f a} with its natural type synonym, \texttt{Coalgebra}, we yield a unified
 definition of \texttt{coelgot}.
