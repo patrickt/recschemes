@@ -614,6 +614,8 @@ rhylo :: Functor f => RAlgebra f b -> RCoalgebra f a -> a -> b
 rhylo ralg rcoalg = apo rcoalg >>> para ralg
 \end{code}
 
-As far as I can tell, there is no separate name for this construction; I'd refer to it as an
-``R-hylomorphism'', which has a ring to it. (If you know the name for this construction, drop me a line.)
+As far as I can tell, this construction (though it is not particularly groundbreaking) hasn't been named
+in the literature before—if you know its name, drop me a line.
+I referred to it as an ``R-hylomorphism'', but I like Rob Rix's term for it,
+the ``hypomorphism'', a clever amalgam of its component parts.
 I leave the deforestation stage, analogous to \texttt{hylo}, as an exercise for the reader.
