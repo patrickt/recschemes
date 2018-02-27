@@ -460,8 +460,7 @@ one of two values, of course: the trusty \texttt{Either} type. Changing our coal
 elgot :: Functor f => Algebra f b -> (a -> Either b (f a)) -> a -> b
 \end{verbatim}
 
-We'll use an auxiliary functions to define Elgot algebras: \texttt{|||} (pronounced `fanin'). It is an
-infix form of the \texttt{either} helper function: given  two functions, one of type \texttt{b -> a}
+We'll use an auxiliary functions to define Elgot algebras: \texttt{\vert\vert\vert} (pronounced `fanin'). It is an infix form of the \texttt{either} helper function: given  two functions, one of type \texttt{b -> a}
 and the other of type \texttt{c -> a}, it creates a function that takes \texttt{Either} a \texttt{b}
 or a \texttt{c} and returns an \texttt{a}.
 
@@ -557,7 +556,7 @@ yielding performance comparable to an imperative, lower-level Rust implementatio
 
 \subsubsection{Reversing the Arrows, Again}
 
-In the defintion of \texttt{elgot} above,  we used \texttt{|||} to handle the Either case: in performing
+In the defintion of \texttt{elgot} above,  we used \texttt{\vert\vert\vert} to handle the Either case: in performing
 \texttt{id} (no operation) on a \texttt{Left}
 value and recursing on a \texttt{Right} value, we gained a clarity of definition—but more importantly, we
 make it easy to reverse the arrows. Every time we reverse the arrows on a fold, we yield the corresponding
@@ -566,14 +565,14 @@ during \emph{destruction}, rather than construction.
 
 We know how to reverse most of the operations in the above definition: \texttt{alg} becomes \texttt{coalg}
 and vice versa, \texttt{>>>} becomes \texttt{<<<} and vice versa, and \texttt{id} stays the same,
-being its own dual. The \texttt{|||} may be slightly less obvious, but if we remember that tuples
+being its own dual. The \texttt{\vert\vert\vert} may be slightly less obvious, but if we remember that tuples
 (\texttt{,}) are dual to \texttt{Either}, we yield the \texttt{&&&} operator, pronounced `fanout':
 
 \begin{verbatim}
 (&&&) :: (a -> b) -> (a -> c) -> (a -> (b, c))
 \end{verbatim}
 
-Whereas \texttt{|||} took two functions and used one or either of them to deconstruct an \texttt{Either},
+Whereas \texttt{\vert\vert\vert} took two functions and used one or either of them to deconstruct an \texttt{Either},
 \texttt{&&&} takes two functions and uses both of them to construct a tuple: given one of type
 \texttt{a -> b} and the other of type \texttt{a -> c}, we can apply them both on a given \texttt{a} to
 yield a tuple of type \texttt{(b, c)}. Again, reading the ampersand as `and' can be a useful memonic:
