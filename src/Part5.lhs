@@ -87,7 +87,7 @@ But it doesn't have to be.) Similarly,
 \href{https://hackage.haskell.org/package/recursion-schemes-5.0.2/docs/Data-Functor-Foldable.html#v:hylo}
 {Kmett's formulation} of hylo makes no \texttt{Base} functor visible.
 
-\subsubsection{Hello, \texttt{hylo}}
+\subsubsection{Highs, Lows, and \texttt{hylo}}
 
 The hylomorphism is more than an elegant result—it generalizes many computations that we as programmers
 encounter in our day-to-day work. The canonical example is the factorial function, but an abstraction that
@@ -419,9 +419,8 @@ futumorphism to generate plant life, but only used a catamorphism, rather than a
 render the resulting plant. We could have expressed that catamorphism as a histomorphism, as we showed
 when we implemented \texttt{cata} in terms of \texttt{histo}, but bringing in the power of histomorphisms
 and not using them is pretty pointless. I haven't been able to find a useful or illustrative of \texttt{chrono}
-in action (if you know of one, get in touch!) but I at least have the reassurance that Kmett himself
-\href{https://
-twitter.com/kmett/status/318410115101380608}{can't think of one either.} \texttt{chrono} can,
+in action (if you know of one, get in touch!) but I at least have the reassurance that its discoverer himself
+\href{https://twitter.com/kmett/status/318410115101380608}{can't think of one either.} \texttt{chrono} can,
 however, be used to implement the \emph{dynamorphism}, a scheme specialized towards solving dynamic programming
 problems, which we will discuss in future installments. (It's possible that Uustalu and Vene neglected to
 mention the chronomorphism for precisely this reason—it's hard to find a truly compelling use case for it.)
@@ -440,7 +439,8 @@ Stefan Milius, and Jiří Velebil, entitled \href{https://arxiv.org/pdf/cs/06090
 provides us with a category-theoretical treatment of this pattern, avoiding the hornet's nest that is
 impurity. Named after Calvin Elgot, an American mathematician who worked for many decades in the intersection
 between software engineering and pure mathematics, Elgot algebras and coalgebras generalize hylomorphisms,
-catamorphisms, and apomorphisms in a manner both elegant and useful.
+catamorphisms, and apomorphisms in a manner both elegant and useful. The paper itself is \emph{extremely}
+dense, but Kmett, as per usual, has done the community a great service in translating it to Haskell.
 
 Let's consider the type signature of a hylomorphism. Rather than just repeat our first type signature,
 let's look at \texttt{hylo} after we expand the \texttt{Algebra} and \texttt{Coalgebra} type synonyms.
@@ -465,15 +465,16 @@ one of two values, of course: the trusty \texttt{Either} type. Changing our coal
 elgot :: Functor f => Algebra f b -> (a -> Either b (f a)) -> a -> b
 \end{verbatim}
 
-We'll use an auxiliary functions to define Elgot algebras: \texttt{\vert\vert\vert} (pronounced `fanin'). It is an infix form of the \texttt{either} helper function: given  two functions, one of type \texttt{b -> a}
+We'll use an auxiliary functions to define Elgot algebras: \texttt{ \vert\vert\vert } (pronounced `fanin').
+It is an infix form of the \texttt{either} helper function: given  two functions, one of type \texttt{b -> a}
 and the other of type \texttt{c -> a}, it creates a function that takes \texttt{Either} a \texttt{b}
 or a \texttt{c} and returns an \texttt{a}.
 
 \begin{verbatim}
-(|||) :: (b -> a) -> (c -> a) -> (Either b c -> a)
+(\vert\vert\vert) :: (b -> a) -> (c -> a) -> (Either b c -> a)
 \end{verbatim}
 
-Reading \texttt{|||} as `or' can be a helpful mnemonic: we can see that \texttt{f ||| g} returns a function
+Reading \texttt{ \vert\vert\vert } as `or' can be a helpful mnemonic: we can see that \texttt{f \vert\vert\vert g} returns a function
 that uses \texttt{f} \emph{or} \texttt{g}.
 
 Defining \texttt{elgot} follows straightforwardly from the above optimized definition of \texttt{hylo}.
@@ -508,7 +509,10 @@ functions of type \texttt{Result -> Result} a few times here, so we'll make a ty
 type Cont = Result -> Result
 \end{code}
 
-We'll start by rewriting \texttt{parseToken}
+We'll start by rewriting \texttt{parseToken}. Rather than returning a plain \texttt{Token} and failing at
+runtime if provided an invalid numeric value, we'll use \texttt{readMaybe} to yield a \texttt{Maybe Int},
+returning an \texttt{Either} that contains an early-termination function over \texttt{Result}s or an
+integer wrapped by a \texttt{Lit} constructor
 
 \begin{code}
 safeToken :: String -> Either Cont Token
@@ -519,7 +523,14 @@ safeToken "/" = Right (Op div)
 safeToken str = case readMaybe str of
   Just num -> Right (Lit num)
   Nothing  -> Left  (const (ParseError str))
+\end{code}
 
+Similarly, we rewrite \texttt{parseToken} to invoke \texttt{safeToken}. The \texttt{do}-notation
+provided by Haskell beautifies the nonempty-string case, binding a successful parse into the
+\texttt{parsed} result when we encounter a \texttt{Right} values and implicitly terminating should
+\texttt{safeToken} return \texttt{Left}, the failure case.
+
+\begin{code}
 safeParse :: String -> Either Cont (List Token String)
 safeParse ""  = return Nil
 safeParse str = do
@@ -527,20 +538,25 @@ safeParse str = do
   let newSeed   = dropWhile isSpace rest
   parsed <- safeToken x
   return $ Cons parsed newSeed
+\end{code}
 
+To tie all this together, we rephrase the definition of \texttt{safeEval}. We have to make our pattern-matching
+slightly more specific—we have to match on \texttt{Success} values to get a stack out of them—but we can also
+remove the call to \texttt{error} in this function. When handling an arithmetic operation, if there are too
+few values on the stack to proceed, we call the continuation with
+a \texttt{TooFewArguments} value
+
+\begin{code}
 safeEval :: Algebra (List Token) Cont
 safeEval (Cons (Lit i) cont) (Success stack) = cont (Success (i : stack))
-safeEval (Cons (Op fn) cont) (Success s)     = cont $ case s of
+safeEval (Cons (Op fn) cont) (Success s)     = cont (case s of
   (a:b:rest) -> Success (fn b a : rest)
-  _          -> TooFewArguments s
+  _          -> TooFewArguments s)
 safeEval _ result  = result
 
 \end{code}
 
-We have to make our pattern-matching slightly more specific—we have to match on \texttt{Success} values
-to get a stack out of them—but we can also remove the call to \texttt{error} in this function. When handling
-an arithmetic operation, if there are too few values on the stack to proceed, we call the continuation with
-a \texttt{TooFewArguments} value. That's two uses of \texttt{error} removed—a victory in the struggle against
+That's two uses of \texttt{error} removed—a victory in the struggle against
 partial functions and runtime crashes! Furthermore, the error handling becomes tacit in the definition of
 \texttt{safeParse}: no case statements or calls to \texttt{throw} are required, as the do-notation over
 \texttt{Either} handles the \texttt{Left} case for us.
@@ -570,8 +586,8 @@ during \emph{destruction}, rather than construction.
 
 We know how to reverse most of the operations in the above definition: \texttt{alg} becomes \texttt{coalg}
 and vice versa, \texttt{>>>} becomes \texttt{<<<} and vice versa, and \texttt{id} stays the same,
-being its own dual. The \texttt{\vert\vert\vert} may be slightly less obvious, but if we remember that tuples
-(\texttt{,}) are dual to \texttt{Either}, we yield the \texttt{&&&} operator, pronounced `fanout':
+being its own dual. The \texttt{\vert\vert\vert} may be slightly less obvious, but if we remember that the
+tuple value (\texttt{(a, b)}) us dual to \texttt{Either a b}, we yield the \texttt{&&&} operator, pronounced `fanout':
 
 \begin{verbatim}
 (&&&) :: (a -> b) -> (a -> c) -> (a -> (b, c))
@@ -580,7 +596,7 @@ being its own dual. The \texttt{\vert\vert\vert} may be slightly less obvious, b
 Whereas \texttt{\vert\vert\vert} took two functions and used one or either of them to deconstruct an \texttt{Either},
 \texttt{&&&} takes two functions and uses both of them to construct a tuple: given one of type
 \texttt{a -> b} and the other of type \texttt{a -> c}, we can apply them both on a given \texttt{a} to
-yield a tuple of type \texttt{(b, c)}. Again, reading the ampersand as `and' can be a useful memonic:
+yield a tuple of type \texttt{(b, c)}. Again, reading the triple-ampersand as `and' can be a useful memonic:
 \texttt{f &&& g} returns a function that uses both \texttt{f} `and' \texttt{g}.
 
 Now we know how to reverse every operation in \texttt{elgot}. Let's do so:
@@ -599,7 +615,7 @@ Our algebra, which previously took an \texttt{f b}, now takes a tuple—\texttt{
 the same \texttt{a} used to generate the \texttt{f b} we are examining. The `shortcut' behavior here is
 slightly more subtle than that present in the definition of \texttt{elgot}—it depends on Haskell's call-by-need
 semantics. If we never observe the second element of the tuple—the \texttt{f b}—it will never be evaluated,
-and as such neither will any of the computations used to construct it.
+and as such neither will any of the computations used to construct it!
 
 By replacing \texttt{a -> f a} with its natural type synonym, \texttt{Coalgebra}, we yield a unified
 definition of \texttt{coelgot}.
@@ -620,7 +636,6 @@ rhylo ralg rcoalg = apo rcoalg >>> para ralg
 \end{code}
 
 As far as I can tell, this construction (though it is not particularly groundbreaking) hasn't been named
-in the literature before—if you know its name, drop me a line.
-I referred to it as an ``R-hylomorphism'', but I like Rob Rix's term for it,
-the ``hypomorphism'', a clever amalgam of its component parts.
+in the literature before—if you know its name, drop me a line. I refer to it as an ``R-hylomorphism'',
+but I like Rob Rix's term for it, the ``hypomorphism'', a clever amalgam of its component parts.
 I leave the deforestation stage, analogous to \texttt{hylo}, as an exercise for the reader.
