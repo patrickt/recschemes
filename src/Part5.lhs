@@ -3,9 +3,9 @@
 \ignore{
 \begin{code}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE ViewPatterns        #-}
+{-# LANGUAGE DeriveFunctor       #-}
 module Part5
   ( Token (..)
   , List (..)
@@ -41,34 +41,30 @@ import Debug.Trace
   \href{http://blog.sumtypeofway.com/recursion-schemes-part-iv-time-is-of-the-essence/}{4},
   \href{http://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/}{4½}.}
 
-Thus far, we've explored a menagerie of recursion schemes. Catamorphisms and anamorphisms fold and unfold over
-data structures, paramorphisms and apomorphisms fold with extra information, and histomorphisms and
-futumorphisms allow us to fold and unfold with access to the history and future of the fold and unfold.
+Thus far, we've explored a menagerie of recursion schemes. Catamorphisms and anamorphisms fold and unfold
+data structures, paramorphisms and apomorphisms fold with additional information, and histomorphisms and
+futumorphisms allow us to fold using historical values and unfold with user-defined control flow.
 
-At each stage, we derived an unfold by `reversing the arrows' of the fold—put another way, we computed the
-categorical dual of each fold operation. Given that fact that we can derive an unfold from a fold (and vice
-versa), and given the powerful tool in our toolbox that is function composition,
-the next question\footnote{I admit that previous entry in this series stated that the next question we'd
-  consider is the laws that the various recursion schemes obey; however, the fact that the schemes under
-  discussion in this entry also obey their own set of laws, I felt we should introduce them before considering
-  the laws at large. In other words, I lied.} we should ask is ``what happens when we compose an
-unfold with a fold?'' In this entry, we'll explore the structures generated from such compositions. (This
-post is literate Haskell; you can find the code
+Given each fold—\texttt{cata}, \texttt{para}, \texttt{histo}—we derived its corresponding
+unfold by `reversing the arrows' of the fold—put another way, we computed the categorical dual of each fold operation.
+Given that fact that we can derive an unfold from a fold (and vice versa), and given the powerful tool in our toolbox that is function composition,
+the next question we should ask is ``what happens when we compose an unfold with a fold?''
+In this entry, we'll explore the structures generated from such compositions. (This post is literate Haskell; you can find the code
 \href{https://github.com/patrickt/recschemes/blob/master/src/Part5.lhs}{here}.)
 
 Meijer et. al answered the above question in \emph{
   \href{https://maartenfokkinga.github.io/utwente/mmf91m.pdf}{Bananas, Lenses, Envelopes, and Barbed Wire}}.
 They called this concept—unfolding a data structure from a seed value, then computing a final result by folding
-over that data structure—a hylomorphism\footnote{
+over the data structure thus produced —a hylomorphism\footnote{
   If you Google `hylomorphism', the results will be almost concerned with Aristotle's
   \href{https://en.wikipedia.org/wiki/Hylomorphism}{philosophical theory} of the same name. Though Aristotle's
   concept is not particularly relevant to the study of recursion schemes, we'll discuss why this name is
   appropriate for the computation that our hylomorphism performs.}. The hylomorphism is sometimes referred to
-as a `refold', which is a slightly more approachable but not particularly illustrative name—the streaming literate describes the concept of `producer' and `consumer' functions, and a perhaps-more-meaningful name for a hylomorphism is a `producer-consumer function'.
+as a `refold', which is a slightly more approachable but not particularly illustrative name—I prefer to think
+of a hylomorphism as `producer-consumer function', where the unfold produces values for the fold to consume. 
 
 If you grasp the concept of a catamorphism (a fold) and an anamorphism (an unfold), a hylomorphism is easy:
-it's just an unfold followed by a fold. The unfold creates a nested structure out of a seed value, and the
-fold tears the resulting structure down into a final value. Here's the definition:
+it's just the latter followed by the former. The definition follows:
 
 \begin{code}
 hylo :: Functor f => Algebra f b -> Coalgebra f a -> a -> b
@@ -82,12 +78,16 @@ The `hylo' in `hylomorphism' comes from the Greek \emph{hyle}, ὕλη, meaning 
 `matter' to mean the substance out of which an object is formed (`morpho`); as such, we can read
 `hylomorphism' as a function that forms a result object out of some intermediate, constituent matter.
 
-Something interesting to note is that \texttt{hylo} in no way involves \texttt{Term}, the fixed point of a
-\texttt{Functor}. We neither pass in nor recieve an infinite data structure: our unfold generates a
-standard \texttt{Functor}, and our fold consumes it. (Of course, your input \texttt{a} or your output
-\texttt{b} could be a \texttt{Term} over some \texttt{Functor}. But it doesn't have to be.)
+Something interesting to note is that \texttt{Term}, the fixed point of a \texttt{Functor}, appears
+nowhere in the signature of \texttt{hylo}. Though \texttt{ana} produces and \texttt{cata} consumes
+a \texttt{Term f}, this is elided in the type signature, a hidden detail of the implemementation: all
+that is necessary is a \texttt{Functor} instance to parameterize the algebra and coalgebra. (Of course,
+your input \texttt{a} or your output \texttt{b} could be a \texttt{Term} over some \texttt{Functor}.
+But it doesn't have to be.) Similarly, 
+\href{https://hackage.haskell.org/package/recursion-schemes-5.0.2/docs/Data-Functor-Foldable.html#v:hylo}
+{Kmett's formulation} of hylo makes no \texttt{Base} functor visible.
 
-\subsubsection{Highs, Lows, and \texttt{hylo}}
+\subsubsection{Hello, \texttt{hylo}}
 
 The hylomorphism is more than an elegant result—it generalizes many computations that we as programmers
 encounter in our day-to-day work. The canonical example is the factorial function, but an abstraction that
@@ -103,10 +103,14 @@ we:
   distance over strings.
 \end{itemize}
 
-Let's put \texttt{hylo} to work. We'll build a \href{https://en.wikipedia.org/wiki/Reverse_Polish_notation}{RPN calculator} with \texttt{hylo}. Given the string \texttt{+ 1 2}, our calculator should compute \texttt{1 + 2}, and given \texttt{2 1 12 3 / - +} it should calculate \texttt{(2 + 1) - (12 / 3)}: every RPN postfix expression has one unambiguous parse, obviating the need for parentheses associated with infix operators. Our coalgebra will unfold a list of operations from a seed string, and the algebra will consume the generated list, ultimately yielding a stack of results.
+Let's put \texttt{hylo} to work. We'll build a \href{https://en.wikipedia.org/wiki/Reverse_Polish_notation}{RPN calculator}
+with \texttt{hylo}. Given the string \texttt{+ 1 2}, our calculator should compute \texttt{1 + 2}, and given \texttt{2 1 12 3 / - +}
+it should calculate \texttt{(2 + 1) - (12 / 3)}: every RPN postfix expression has one unambiguous parse, obviating the need
+for parentheses associated with infix operators. Our coalgebra will unfold a list of operations from a seed (a string), producing
+a list of numbers and operators, and the algebra will consume the generated list, ultimately yielding a stack of numbers.
 
-The stack of an RPN calculator contains two types of values: mathematical operations (addition, multiplication,
-&c.) and integer literals. We'll define a \texttt{Token} datatype that our calculator will store.
+As I just mentioned, the input to RPN calculator consists of two kinds of values: mathematical operations (addition,
+multiplication, &c.) and integer literals. We'll define a \texttt{Token} datatype upon which our calculator will operate:
 
 \begin{code}
 data Token
@@ -116,16 +120,15 @@ data Token
 
 Note that our \texttt{Op} constructor contains a binary function \texttt{Int -> Int -> Int}, rather than
 a string representation of the relevant operation. While this precludes a \texttt{Show} instance for
-\texttt{Token}, since compiled functions have no meaningful string representation, it will simplify the
-implementation: when we parse an \texttt{Op}, we'll store the Haskell
-function that corresponds to the operator, so that when we perform computations we need only call the
-stored function with the arguments present on the stack.
+\texttt{Token}, since functions have no meaningful string representation at runtime, it will simplify the
+implementation: when we parse an \texttt{Op}, we'll store the Haskell function that corresponds to the operator,
+so that when we perform computations we need only call the stored function with the arguments present on the stack.
 
 We need to be able to read a \texttt{Token} out of a string. If we were more principled and honest people, we
 would use a parsing library like \href{https://hackage.haskell.org/package/megaparsec}{\texttt{megaparsec}} or
 \href{https://hackage.haskell.org/package/trifecta}{\texttt{trifecta}}, or even a \texttt{Maybe} monad to
-represent parse failures—but in an effort to keep things simple, let's make this function pure, calling
-\texttt{error} if someone decides to get saucy and provide invalid data.
+represent parse failures—but in an effort to keep things simple, let's make this function pure using 
+\texttt{read}, which fails at runtime if someone decides to get saucy and provide invalid data.
 
 \begin{code}
 parseToken :: String -> Token
@@ -133,17 +136,17 @@ parseToken "+" = Op (+)
 parseToken "-" = Op (-)
 parseToken "*" = Op (*)
 parseToken "/" = Op div
-parseToken num = Lit (fromMaybe (error ("bad token: " ++ num)) (readMaybe num))
+parseToken num = Lit $ read num
 \end{code}
 
 Nothing too difficult here. We pattern-match on a given string; given a mathematical operator, we return
-an \texttt{Op} containing the corresponding Haskell function; otherwise, we use \texttt{readMaybe} to
-yield a \texttt{Lit} value, perishing at runtime if this parse fails.
+an \texttt{Op} containing the corresponding Haskell function; otherwise, we use \texttt{read} to yield an
+\texttt{Int} and wrap it in a \texttt{Lit}.
 
 The easiest way to represent a LIFO stack in Haskell is with a list: we push with a cons operator (\texttt{:})
-and pop with by dropping the first item in the list (\texttt{tail}). As such, we'll need a
+and pop by dropping the first item in the list (\texttt{tail}). As such, we'll need a
 \texttt{Term}-compatible (parameterized) list type. Though last time we explored how the \texttt{Base}
-type family allows us to use Haskell's \texttt{[]} list type with recursion schemes, we'll define our own here.
+type family allows us to use Haskell's \texttt{[]} list type with recursion schemes, we'll roll our own here.
 
 \begin{code}
 data List a b
@@ -160,7 +163,6 @@ definition of coalgebras from part II:
 type Coalgebra f a = a -> f a
 \end{verbatim}
 
-
 The seed value \texttt{a} will be a \texttt{String}, while the container type \texttt{f} will be
 \texttt{List Token}. We'll write the type signature of our coalgebra now:
 
@@ -175,7 +177,6 @@ the type \texttt{List Token String}:
 \begin{verbatim}
 parseRPN :: String -> List Token String
 \end{verbatim}
-
 
 This makes sense. In each step of our unfold we return a List value containing a \texttt{Token} value
 and the remaining \texttt{String} that we have yet to parse, unless the result is \texttt{Nil}, at which point
@@ -219,7 +220,7 @@ parseRPN str = Cons token newSeed
 
 Not too shabby! Six lines of code, two cases, no compiler warnings. (And this would be even cleaner if we
 used an actual parser.) If we run \texttt{ana parseRPN} with \texttt{3 4 +} as a seed value, we yield a
-result equivalent to the list \texttt{[Lit 3, Lit 4, Op +]}.
+result equivalent to the list \texttt{Lit 3, Lit 4, Op +, Nil}.
 
 It's time to write our evaluator. Let's consult the definition of an \texttt{Algebra}:
 
@@ -241,8 +242,8 @@ And now we can set down a type signature for our evaluator:
 evalRPN :: Algebra (List Token) Stack
 \end{verbatim}
 
-But this is wrong! Here we have an dilemma: given a reverse-Polish expression: \texttt{2 3 +} or
-\texttt{4 2 5 * + 1 3 2 * + /}, we compute the result left-to-right, pushing literals onto the stack and
+But here we encounter a dilemma! Given a reverse-Polish expression: \texttt{2 3 +} or 
+\texttt{4 2 5 * + 1 3 2 * + /}, we need to compute the result left-to-right, pushing literals onto the stack and
 performing the operations we find on the values in the stack. This means our evaluator must work from the left
 (in the manner of \texttt{foldl}) rather than from the right (a la \texttt{foldr}).
 But our old friend \texttt{cata} is a right fold—it travels all the way to the \texttt{Nil} at the end of
@@ -252,21 +253,21 @@ provides us no opportunity to reverse the parsed list of tokens (an admittedly k
 The answer is simple—our result type will not be an ordinary \texttt{Stack} value. We will instead
 use a function that takes and returns a \texttt{Stack}: \texttt{Stack -> Stack}. The ultimate result of
 this catamorphism will be such a function—we kick off the computation by invoking it with an empty stack.
-Since the leftmost element was evaluated most recently, the aggregated function will operate on the leftmost
-element first. Further invocations will operate on each subsequent item, left-to-right, until we encounter
-the \texttt{Nil} element and cease computation.
+Since the leftmost element was evaluated most recently, \emph{the aggregated function will operate on the leftmost
+element first}. Further invocations will operate on each subsequent item, left-to-right, until we encounter
+the \texttt{Nil} element and cease computation. And, conveniently, the value we provide to this function at
+the top-level will be the initial stack that this calculator uses.
 
 If this is difficult to visualize, the following diagram may help:
 
-TODO: diagram
-
-Functional programmers will recognize this as \emph{continuation-passing-style}. And it is! By providing a
-continuation function—a function that determines what we do next—we can \emph{fold rightward to build a function that consumes from the left}. The fact that we can use CPS to transform the rightward \texttt{cata}
-into a left fold is utterly
-staggering to me—as with the fact that \texttt{histo} and \texttt{futu} operate on the cofree comonad and free
-monad, it shows that recursion schemes are inextricably interconnected with seemingly-disparate tools in the
-toolbox that is functional programming. There is an orchestral beauty to a rigorous, category-theoretical
-approach to programming and engineering—my goal in this series has been to shine a light on this beauty.
+Functional programmers will recognize this as \emph{continuation-passing-style}. By providing a
+continuation function—a function that determines what we do next—we can \emph{fold rightward
+to build a function that consumes from the left}. The fact that we can use CPS to transform the rightward \texttt{cata}
+into a left fold is utterly staggering to me—as with the fact that \texttt{histo} and \texttt{futu}
+operate on the cofree comonad and free monad, it shows that recursion schemes are inextricably interconnected
+with seemingly-disparate tools in the toolbox that is functional programming. There is an orchestral beauty to
+a rigorous, category-theoretical approach to programming and engineering—if in this series I have shed any light 
+on this beauty, I have succeeded.
 
 Let's rewrite \texttt{evalRPN} to use \texttt{Stack -> Stack} as its carrier type:
 
@@ -287,45 +288,47 @@ case falls out quite easily: we simply return the identity function, as there is
 modify a passed-in stack.
 
 \begin{verbatim}
-evalRPN Nil = λstack -> stack -- aka `id`
+evalRPN Nil stack = stack -- aka `id`
 \end{verbatim}
+
+Though we are technically returning a function from \texttt{evalRPN}, Haskell allows us to write
+this function in a more beautiful way: rather than returning an explicit function
+\texttt{λstack -> stack}, we can move that \texttt{stack} argument into the parameter list of
+\texttt{evalRPN}\footnote{Put another way, Haskell makes no syntactic distinction between the types
+\texttt{a -> (b -> c)} and \texttt{a -> b -> c}.}.
 
 Now let's handle the case of adding a new value onto the stack. Our \texttt{Cons} constructor provides two
 values: a \texttt{Lit} that contains an integer, and our accumulator/carrier type, a function from
 \texttt{Stack} to \texttt{Stack}. We'll call that \texttt{cont}, since we'll continue evaluation by
 invoking it. (If, for some reason, we wanted to terminate early, we would return a function that did not
-invoke the provided continuation.) As such, the function we return will take a stack, push the integer
+invoke the provided continuation.) As such, \texttt{evalRPN} will take a stack, push the integer
 from the \texttt{Lit} value onto that stack, and invoke \texttt{cont} to continue to the next stage:
 
 \begin{verbatim}
-evalRPN (Cons (Lit i) cont) = λstack -> cont (i : stack)
+evalRPN (Cons (Lit i) cont) stack = cont (i : stack)
 \end{verbatim}
 
-The case of applying a function to the stack is similar, except our returned function
-has to introspect the top two values so as to have some operands to the provided \texttt{Op}.
-As such, we use a \texttt{case} statement that introspects the \texttt{stack} argument to pop off
+The case of applying a function to the stack is similar, except we have to introspect the top two values
+so as to have some operands to the provided \texttt{Op}.
+As such, we pattern-match on the \texttt{Cons} structure over which we are folding in order to pop off
 its top two values. We then apply those operands to the function inside the \texttt{Op}, append
-that value to the stack, and invoke \texttt{cont} to proceed to the next stage. If there are
-too few values on the stack, we call \texttt{error} to bail out\footnote{
+that value to the stack, and invoke \texttt{cont} to proceed to the next stage.
+
+\begin{verbatim}
+evalRPN (Cons (Op fn) cont) (a:b:rest) = cont (fn b a : rest)
+evalRPN _ stack                        = error ("too few arguments on stack: " <> show stack)
+\end{verbatim}
+
+
+If there are too few values on the stack, we call \texttt{error} to bail out\footnote{
   We could ensure that there are always sufficient values on our stack: if our calculator is
   initialized with an infinite list for a stack (such as \texttt{[0, 0..]}, an infinite sequence of zeroes),
-  we could omit the error case.}. After applying the function contained in the \texttt{Op} value to
-these two values,
+  we could omit the error case.}.
+After applying the function contained in the \texttt{Op} value to these two values,
 we append the result of this function to the remainder of the list, then call the continuation to
 proceed to the next computational stage.
 
-\begin{verbatim}
-evalRPN (Cons (Op fn) cont) = λstack -> case stack of
-  (a : b : rest) -> cont (fn b a : rest)
-  _              -> error ("too few arguments on stack: " <> show stack)
-\end{verbatim}
-
-I wrote this using explicit lambdas to make it clear that each step of the evaluation returns a function, one
-that determines what to do next by invoking the continuation that is the algebra's carrier type. But these
-lambdas are necessary: since Haskell doesn't distinguish between a unary function that returns a lambda and
-a binary function that returns a value, we can write \texttt{evalRPN} a little more naturally, providing a
-\texttt{stack} argument to the function itself\footnote{Put another way, Haskell makes no distinction
-between the types \texttt{a -> (b -> c)} and \texttt{a -> b -> c}}.
+Let's take a look at the \texttt{evalRPN} function, assembled in one place:
 
 \begin{code}
 evalRPN :: Algebra (List Token) (Stack -> Stack)
@@ -335,7 +338,7 @@ evalRPN (Cons (Op fn) cont) (a:b:rest) = cont (fn b a : rest)
 evalRPN _ stack                        = error ("too few arguments on stack: " <> show stack)
 \end{code}
 
-I find this significantly to read: it shows clearly that evaluation terminates in the \texttt{Nil} case,
+I find this a lovely definition: it shows clearly that evaluation terminates in the \texttt{Nil} case,
 and continues in the \texttt{Cons} cases by virtue of invoking the carried \texttt{cont} function.
 
 Now we have a coalgebra (the parser) and an algebra (the evaluator, in continuation-passing style).
@@ -361,6 +364,8 @@ We can test this by evaluating it in GHCi:
 λ> rpn "15 7 1 1 + - / 3 * 2 1 1 + + -"
 [5]
 \end{verbatim}
+
+Dope.
 
 Though an RPN calculator isn't enormously complicated, I'd argue that our implementation demonstrates the
 virtue of recursion schemes: by separating \emph{what} we're doing from \emph{how} we're doing it, we

@@ -29,6 +29,25 @@ extract ("greetings" :< Nothing) ==> "greetings"
 This is a clue! There exists some function, a *generalized catamorphism*, that, given a function operating on the `Identity` comonad yields `cata`; 
 similarly, given a function over the tuple comonad `(, e)`, we should be able to yield `para`, and given something over `Cofree`, we will get `histo`. 
 
+```
+gcata dist walg = walg . extract . c where
+	c = dist . fmap (duplicate . fmap walg . c) . project
+```
+
+```
+cata alg = c where c = alg . fmap c . project
+```
+
+Like `cata`, `gcata` starts off by `project`ing its argument into a `Base` functor, then recursing, with `fmap` and the provided algebra, into the contents of that `Base` functor. Once we've reached the bottom of that `Base` functor, 
+we begin to fold the structure leaf-to-root. At that point we apply the algebra `f`.  At this point, `cata` has nothing left to do, since the F-algebra has yielded us a final result. 
+
+The same is not true with `gcata`—we have to do a few more gyrations to ensure we get an ordinary `a` value out of the ultimate result, rather than some result wrapped in the `w` comonad. 
+What Kmett does here is extremely clever: he passes the result of applying the w-algebra to `duplicate`, which wraps the comonad `w` in another layer of `w`—an `Identity a` becomes an `Identity (Identity a)`, a tuple `(a, b)` becomes a tuple `(a, (a, b))`, and so on.
+At this point we have a `Base t (w (w a))`.
+At this point we apply the distributive law. That yields us a `w (Base t (w a))`.
+Then we apply `extract` to discard the outer `w`, yielding us a `Base t (w a)`.
+Since our w-algebra takes a `Base t (w a)`, we apply it one more time, finally yielding an `a`.
+
 ### Distributive Laws
 
 ```
@@ -77,3 +96,20 @@ distTuple b = (justT, baseA)
 	      justT = embed baseT -- given a 'Base t t', yields a t
 		  baseA = fmap snd b  -- given a 'Base t (t, a)', yields a 'Base t a'
 ```
+
+Finally, we need one for `Cofree`. 
+
+``` haskell
+distHisto :: Functor f => f (Cofree f a) -> Cofree f (f a)
+```
+
+The implementation of this one is a little bit subtle, so I don't expect you to follow every step, but the same principles apply: given an `f` containing a `Cofree`, we distribute the `f` inside the `Cofree` and pull said `Cofree` out to the top level.
+
+``` haskell
+distHisto = Cofree.unfold cofreeToTuple where
+	cofreeToTuple f = (fmap extract f, fmap Cofree.unwrap f)
+```
+
+Rather than diving into the rich details of `Cofree`, for our purposes it'll be good enough to say that `unfold`, given a seed, generates a `Cofree` out of a function that returns, at each stage of the unfold, a value and some further seed with which to continue. Remember that `Cofree` is analogous to an infintely-nested tuple; we can't write an infinitely-nested tuple in Haskell, but we can hand a tuple of value and seed to `unfold` and it will take care of creating one for us.[^1]
+
+[^1]: I usually try to provide explicit types for all my helper functions, but `cofreeToTuple`'s is a touch intimidating: `f (Cofree f a) -> (f a, f (f (Cofree f a)))`.
