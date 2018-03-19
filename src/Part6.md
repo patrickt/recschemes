@@ -14,16 +14,43 @@ para  :: (Base t (t, a) -> a)              -> t -> a
 histo :: (Base t (Cofree (Base t) a) -> a) -> t -> a
 ```
 
-The similarity in shape among these folds should be visible to you. They are all the same, save for the last parameter in the `Base` datum. This suggests that there's some way to generalize these three functions. But in order to do so, we need to have some sort of operation that encompasses operations on `Identity a`, `(t, a)`, and `Cofree (Base t) a`—what, in other words, do they have in common?
+The similarity in shape among these folds should be visible to you. **This is a hint.** The fact that all these fold functions accept a `Base t` over some collection type—an `Identity`, a tuple, a `Cofree`—and return a function of `t -> a`, is a sign that there's some generality that we're not taking advantage of.
 
-These three types are all comonads. Given some comonad `w` containing an `a`, we can use the `extract` function to get an `a` out of it:
+
+They are all the same, save for the last parameter in the `Base` datum. This suggests that there's some way to generalize these three functions. But in order to do so, we need to have some sort of operation that encompasses operations on `Identity a`, `(t, a)`, and `Cofree (Base t) a`—what, in other words, do they have in common? Well, they're all comonads.
+
+## Comonad
+
+Much ink has been spilled on the subject of comonads and their myriad uses. Dave Liang's post is a fun overview of what they can be used for, and Bartosz Milewski's explanation of the theory behind them is, as is so often the case, essential reading.
+
+For the purposes of this post, however, we don't need to go deeply into the theory behind them. All we need to know is that, like its dual the monad, a comonad supports two fundamental operations, `extract` and `duplicate`.
+
+A monad `m` supports wrapping a given datum `a`, yielding an `m a`, with the `return` function. Correspondingly, a comonad `w` supports the opposite of that—given a `w a`, we can get that `a` out of it with `extract.
+
+```haskell
+return  :: Monad m => m -> m a
+
+extract :: Comonad w => w a -> a
+```
+
 
 ``` haskell
-extract :: Comonad w => w a -> a
-
 extract (Identity "hello")       ==> "hello"
 extract ("hello", "goodbye")     ==> "goodbye"
 extract ("greetings" :< Nothing) ==> "greetings"
+```
+
+The other fundamental monad operation is `join`: given a monad holding monadic values, `m (m a)`, we can "squash" or "flatten" the contained `m a` values into a single `m a`.
+
+```haskell
+join :: Monad m => m (m a) -> m a
+```
+
+Correspondingly, comonads support the dual instruction: given a `w a`, we can "project" or "duplicate" it into a `w (w a)`.
+
+``` haskell
+duplicate (Identity "hello")     ==> (Identity (Identity "hello"))
+duplicate ("hello", "goodbye")   ==> ("hello", ("hello", "goodbye"))
 ```
 
 This is a clue! There exists some function, a *generalized catamorphism*, that, given a function operating on the `Identity` comonad yields `cata`; 
