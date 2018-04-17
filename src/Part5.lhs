@@ -41,14 +41,14 @@ import Debug.Trace
   \href{http://blog.sumtypeofway.com/recursion-schemes-part-iv-time-is-of-the-essence/}{4},
   \href{http://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/}{4½}.}
 
-Thus far, we've explored a menagerie of recursion schemes. Catamorphisms and anamorphisms fold and unfold
+Thus far, we've explored a myriad array of recursion schemes. Catamorphisms and anamorphisms fold and unfold
 data structures, paramorphisms and apomorphisms fold with additional information, and histomorphisms and
 futumorphisms allow us to fold using historical values and unfold with user-defined control flow.
 
 Given each fold—\texttt{cata}, \texttt{para}, \texttt{histo}—we derived its corresponding
 unfold by `reversing the arrows' of the fold—put another way, we computed the categorical dual of each fold operation.
-Given that fact that we can derive an unfold from a fold (and vice versa), and given the powerful tool in our toolbox that is function composition,
-the next question we should ask is ``what happens when we compose an unfold with a fold?''
+Given the fact that we can derive an unfold from a fold (and vice versa), and given the powerful tool in our toolbox that is function composition,
+an important question we can ask is ``what happens when we compose an unfold with a fold?''
 In this entry, we'll explore the structures generated from such compositions. (This post is literate Haskell; you can find the code
 \href{https://github.com/patrickt/recschemes/blob/master/src/Part5.lhs}{here}.)
 
@@ -56,12 +56,12 @@ Meijer et. al answered the above question in \emph{
   \href{https://maartenfokkinga.github.io/utwente/mmf91m.pdf}{Bananas, Lenses, Envelopes, and Barbed Wire}}.
 They called this concept—unfolding a data structure from a seed value, then computing a final result by folding
 over the data structure thus produced —a hylomorphism\footnote{
-  If you Google `hylomorphism', the results will be almost concerned with Aristotle's
+  If you Google `hylomorphism', the results will be almost exclusively concerned with Aristotle's
   \href{https://en.wikipedia.org/wiki/Hylomorphism}{philosophical theory} of the same name. Though Aristotle's
   concept is not particularly relevant to the study of recursion schemes, we'll discuss why this name is
   appropriate for the computation that our hylomorphism performs.}. The hylomorphism is sometimes referred to
 as a `refold', which is a slightly more approachable but not particularly illustrative name—I prefer to think
-of a hylomorphism as `producer-consumer function', where the unfold produces values for the fold to consume. 
+of a hylomorphism as a `producer-consumer function', where the unfold produces values for the fold to consume.
 
 If you grasp the concept of a catamorphism (a fold) and an anamorphism (an unfold), a hylomorphism is easy:
 it's just the latter followed by the former. The definition follows:
@@ -83,7 +83,7 @@ nowhere in the signature of \texttt{hylo}. Though \texttt{ana} produces and \tex
 a \texttt{Term f}, this is elided in the type signature, a hidden detail of the implemementation: all
 that is necessary is a \texttt{Functor} instance to parameterize the algebra and coalgebra. (Of course,
 your input \texttt{a} or your output \texttt{b} could be a \texttt{Term} over some \texttt{Functor}.
-But it doesn't have to be.) Similarly, 
+But it doesn't have to be.) Similarly,
 \href{https://hackage.haskell.org/package/recursion-schemes-5.0.2/docs/Data-Functor-Foldable.html#v:hylo}
 {Kmett's formulation} of hylo makes no \texttt{Base} functor visible.
 
@@ -97,6 +97,7 @@ we:
 \begin{itemize}
   \item aggregate and compute properties of data structures, e.g. determining the mean
   or median or outliers present in a set of numeric data;
+  \item interpret or compile a final result from some textual representation of a nested structure
   \item apply recursive divide-and-conquer techniques, e.g. quicksort, mergesort, or
   the fast Fourier transform;
   \item determine differences between data structures, e.g. edit distance or Levenshtein
@@ -109,7 +110,7 @@ it should calculate \texttt{(2 + 1) - (12 / 3)}: every RPN postfix expression ha
 for parentheses associated with infix operators. Our coalgebra will unfold a list of operations from a seed (a string), producing
 a list of numbers and operators, and the algebra will consume the generated list, ultimately yielding a stack of numbers.
 
-As I just mentioned, the input to RPN calculator consists of two kinds of values: mathematical operations (addition,
+As I just mentioned, the input to an RPN calculator consists of two kinds of values: mathematical operations (addition,
 multiplication, &c.) and integer literals. We'll define a \texttt{Token} datatype upon which our calculator will operate:
 
 \begin{code}
@@ -127,7 +128,7 @@ so that when we perform computations we need only call the stored function with 
 We need to be able to read a \texttt{Token} out of a string. If we were more principled and honest people, we
 would use a parsing library like \href{https://hackage.haskell.org/package/megaparsec}{\texttt{megaparsec}} or
 \href{https://hackage.haskell.org/package/trifecta}{\texttt{trifecta}}, or even a \texttt{Maybe} monad to
-represent parse failures—but in an effort to keep things simple, let's make this function pure using 
+represent parse failures—but in an effort to keep things simple, let's make this function pure using
 \texttt{read}, which fails at runtime if someone decides to get saucy and provide invalid data.
 
 \begin{code}
@@ -194,7 +195,7 @@ parseRPN ""  = Nil
 \end{verbatim}
 
 The case for a nonempty string is more interesting. Given a string \texttt{str}, we take as many characters
-from it until we encounter a space. We then pass that chunk into \texttt{parseToken}, sticking its result
+from it as we can, until we encounter a space. We then pass that chunk into \texttt{parseToken}, sticking its result
 into the \texttt{a} field of \texttt{Cons}, then drop all spaces in the remainder of the string and stick
 it into the \texttt{b} field of the \texttt{Cons}. We'll use Haskell's \texttt{span} function to do that,
 which takes a predicate and returns a tuple containing the items that satisfy the predicate and those
@@ -242,7 +243,7 @@ And now we can set down a type signature for our evaluator:
 evalRPN :: Algebra (List Token) Stack
 \end{verbatim}
 
-But here we encounter a dilemma! Given a reverse-Polish expression: \texttt{2 3 +} or 
+But here we encounter a dilemma! Given a reverse-Polish expression: \texttt{2 3 +} or
 \texttt{4 2 5 * + 1 3 2 * + /}, we need to compute the result left-to-right, pushing literals onto the stack and
 performing the operations we find on the values in the stack. This means our evaluator must work from the left
 (in the manner of \texttt{foldl}) rather than from the right (a la \texttt{foldr}).
@@ -260,14 +261,11 @@ the top-level will be the initial stack that this calculator uses.
 
 If this is difficult to visualize, the following diagram may help:
 
-Functional programmers will recognize this as \emph{continuation-passing-style}. By providing a
-continuation function—a function that determines what we do next—we can \emph{fold rightward
-to build a function that consumes from the left}. The fact that we can use CPS to transform the rightward \texttt{cata}
-into a left fold is utterly staggering to me—as with the fact that \texttt{histo} and \texttt{futu}
-operate on the cofree comonad and free monad, it shows that recursion schemes are inextricably interconnected
-with seemingly-disparate tools in the toolbox that is functional programming. There is an orchestral beauty to
-a rigorous, category-theoretical approach to programming and engineering—if in this series I have shed any light 
-on this beauty, I have succeeded.
+The fact that we can transform \texttt{cata}, a rightward fold, into a leftward fold by switching from computing
+a value to computing a function on values is utterly staggering to me. By adding the most fundamental concept
+in functional programming—a function—we yield additional power from \texttt{cata}, the lowliest of recursion schemes.
+This strategy is a well-known idiom in the functional-programming world: this stack is an example of a `difference structure',
+similar to the difference list that is used in Haskell's \texttt{Show} construct.
 
 Let's rewrite \texttt{evalRPN} to use \texttt{Stack -> Stack} as its carrier type:
 
@@ -465,16 +463,16 @@ one of two values, of course: the trusty \texttt{Either} type. Changing our coal
 elgot :: Functor f => Algebra f b -> (a -> Either b (f a)) -> a -> b
 \end{verbatim}
 
-We'll use an auxiliary functions to define Elgot algebras: \texttt{ \vert\vert\vert } (pronounced `fanin').
+We'll use an auxiliary functions to define Elgot algebras: \texttt{ XFANIN } (pronounced `fanin').
 It is an infix form of the \texttt{either} helper function: given  two functions, one of type \texttt{b -> a}
 and the other of type \texttt{c -> a}, it creates a function that takes \texttt{Either} a \texttt{b}
 or a \texttt{c} and returns an \texttt{a}.
 
 \begin{verbatim}
-(\vert\vert\vert) :: (b -> a) -> (c -> a) -> (Either b c -> a)
+(XFANIN) :: (b -> a) -> (c -> a) -> (Either b c -> a)
 \end{verbatim}
 
-Reading \texttt{ \vert\vert\vert } as `or' can be a helpful mnemonic: we can see that \texttt{f \vert\vert\vert g} returns a function
+Reading \texttt{ XFANIN } as `or' can be a helpful mnemonic: we can see that \texttt{f XFANIN g} returns a function
 that uses \texttt{f} \emph{or} \texttt{g}.
 
 Defining \texttt{elgot} follows straightforwardly from the above optimized definition of \texttt{hylo}.
@@ -485,7 +483,7 @@ on the value contained therein.
 
 \begin{code}
 elgot :: Functor f => Algebra f b -> (a -> Either b (f a)) -> a -> b
-elgot alg coalg = coalg >>> (id ||| (fmap (elgot alg coalg) >>> alg))
+elgot alg coalg = coalg >>> (id XFANIN (fmap (elgot alg coalg) >>> alg))
 \end{code}
 
 Let's use an Elgot algebra to bring some sense of safety to our above RPN calculator. Calling \texttt{error}
@@ -527,7 +525,7 @@ safeToken str = case readMaybe str of
 
 Similarly, we rewrite \texttt{parseToken} to invoke \texttt{safeToken}. The \texttt{do}-notation
 provided by Haskell beautifies the nonempty-string case, binding a successful parse into the
-\texttt{parsed} result when we encounter a \texttt{Right} values and implicitly terminating should
+\texttt{parsed} result when we encounter a \texttt{Right} value and implicitly terminating should
 \texttt{safeToken} return \texttt{Left}, the failure case.
 
 \begin{code}
@@ -577,7 +575,7 @@ yielding performance comparable to an imperative, lower-level Rust implementatio
 
 \subsubsection{Reversing the Arrows, Again}
 
-In the defintion of \texttt{elgot} above,  we used \texttt{\vert\vert\vert} to handle the Either case: in performing
+In the defintion of \texttt{elgot} above,  we used \texttt{XFANIN} to handle the Either case: in performing
 \texttt{id} (no operation) on a \texttt{Left}
 value and recursing on a \texttt{Right} value, we gained a clarity of definition—but more importantly, we
 make it easy to reverse the arrows. Every time we reverse the arrows on a fold, we yield the corresponding
@@ -586,14 +584,14 @@ during \emph{destruction}, rather than construction.
 
 We know how to reverse most of the operations in the above definition: \texttt{alg} becomes \texttt{coalg}
 and vice versa, \texttt{>>>} becomes \texttt{<<<} and vice versa, and \texttt{id} stays the same,
-being its own dual. The \texttt{\vert\vert\vert} may be slightly less obvious, but if we remember that the
-tuple value (\texttt{(a, b)}) us dual to \texttt{Either a b}, we yield the \texttt{&&&} operator, pronounced `fanout':
+being its own dual. The \texttt{XFANIN} may be slightly less obvious, but if we remember that the
+tuple value (\texttt{(a, b)}) is dual to \texttt{Either a b}, we yield the \texttt{&&&} operator, pronounced `fanout':
 
 \begin{verbatim}
 (&&&) :: (a -> b) -> (a -> c) -> (a -> (b, c))
 \end{verbatim}
 
-Whereas \texttt{\vert\vert\vert} took two functions and used one or either of them to deconstruct an \texttt{Either},
+Whereas \texttt{XFANIN} took two functions and used one or either of them to deconstruct an \texttt{Either},
 \texttt{&&&} takes two functions and uses both of them to construct a tuple: given one of type
 \texttt{a -> b} and the other of type \texttt{a -> c}, we can apply them both on a given \texttt{a} to
 yield a tuple of type \texttt{(b, c)}. Again, reading the triple-ampersand as `and' can be a useful memonic:
@@ -639,3 +637,12 @@ As far as I can tell, this construction (though it is not particularly groundbre
 in the literature before—if you know its name, drop me a line. I refer to it as an ``R-hylomorphism'',
 but I like Rob Rix's term for it, the ``hypomorphism'', a clever amalgam of its component parts.
 I leave the deforestation stage, analogous to \texttt{hylo}, as an exercise for the reader.
+
+\subsubsection{Acknowledgments}
+
+As always, I would like to thank Manuel Chakravarty for his patience and kindness in checking this
+series for accurately. Colin Barrett, Ross Angle, and Scott Vokes also provided valuable feedback.
+
+I remain very grateful your readership. The next entry will discuss the fusion laws that folds,
+unfolds, and refolds all possess, and how we can use these laws to make real-world use of these
+constructs extremely fast.
