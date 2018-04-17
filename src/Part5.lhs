@@ -469,10 +469,10 @@ and the other of type \texttt{c -> a}, it creates a function that takes \texttt{
 or a \texttt{c} and returns an \texttt{a}.
 
 \begin{verbatim}
-(XFANIN) :: (b -> a) -> (c -> a) -> (Either b c -> a)
+(|||) :: (b -> a) -> (c -> a) -> (Either b c -> a)
 \end{verbatim}
 
-Reading \texttt{ XFANIN } as `or' can be a helpful mnemonic: we can see that \texttt{f XFANIN g} returns a function
+Reading \texttt{ ||| } as `or' can be a helpful mnemonic: we can see that \texttt{f ||| g} returns a function
 that uses \texttt{f} \emph{or} \texttt{g}.
 
 Defining \texttt{elgot} follows straightforwardly from the above optimized definition of \texttt{hylo}.
@@ -483,7 +483,7 @@ on the value contained therein.
 
 \begin{code}
 elgot :: Functor f => Algebra f b -> (a -> Either b (f a)) -> a -> b
-elgot alg coalg = coalg >>> (id XFANIN (fmap (elgot alg coalg) >>> alg))
+elgot alg coalg = coalg >>> (id ||| (fmap (elgot alg coalg) >>> alg))
 \end{code}
 
 Let's use an Elgot algebra to bring some sense of safety to our above RPN calculator. Calling \texttt{error}
@@ -575,7 +575,7 @@ yielding performance comparable to an imperative, lower-level Rust implementatio
 
 \subsubsection{Reversing the Arrows, Again}
 
-In the defintion of \texttt{elgot} above,  we used \texttt{XFANIN} to handle the Either case: in performing
+In the defintion of \texttt{elgot} above,  we used \texttt{|||} to handle the Either case: in performing
 \texttt{id} (no operation) on a \texttt{Left}
 value and recursing on a \texttt{Right} value, we gained a clarity of definition—but more importantly, we
 make it easy to reverse the arrows. Every time we reverse the arrows on a fold, we yield the corresponding
@@ -584,14 +584,14 @@ during \emph{destruction}, rather than construction.
 
 We know how to reverse most of the operations in the above definition: \texttt{alg} becomes \texttt{coalg}
 and vice versa, \texttt{>>>} becomes \texttt{<<<} and vice versa, and \texttt{id} stays the same,
-being its own dual. The \texttt{XFANIN} may be slightly less obvious, but if we remember that the
+being its own dual. The \texttt{|||} may be slightly less obvious, but if we remember that the
 tuple value (\texttt{(a, b)}) is dual to \texttt{Either a b}, we yield the \texttt{&&&} operator, pronounced `fanout':
 
 \begin{verbatim}
 (&&&) :: (a -> b) -> (a -> c) -> (a -> (b, c))
 \end{verbatim}
 
-Whereas \texttt{XFANIN} took two functions and used one or either of them to deconstruct an \texttt{Either},
+Whereas \texttt{|||} took two functions and used one or either of them to deconstruct an \texttt{Either},
 \texttt{&&&} takes two functions and uses both of them to construct a tuple: given one of type
 \texttt{a -> b} and the other of type \texttt{a -> c}, we can apply them both on a given \texttt{a} to
 yield a tuple of type \texttt{(b, c)}. Again, reading the triple-ampersand as `and' can be a useful memonic:
