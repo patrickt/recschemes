@@ -1,23 +1,45 @@
-Let's take a look at the various folds we've described. We'll use Kmett's `Base`-functor formulation.
+In these entries I've tried to emphasize how useful recursion schemes
+are in a real-world context. The subject under discussion
+today—Uustalu, Tarmo, and Vene's [Recursion Schemes from
+Comonads][rsfc]—is, I have to admit, not flush with potential
+real-world applications. However, it is very beautiful, and beauty is
+a worthy goal in itself.
+
+Let's take a look at the various folds we've described thus far.
 
 ``` haskell
-cata  :: (Base t a -> a) -> t -> a
-para  :: (Base t (t, a) -> a) -> t -> a
-histo :: (Base t (Cofree (Base t) a) -> a) -> t -> a
+cata  :: (f a -> a)            -> Fix f -> a
+para  :: (f (Fix f, a) -> a)   -> Fix f -> a
+histo :: (f (Cofree f a) -> a) -> Fix f -> a
 ```
 
-Bear with me for a second. Let's rephrase `cata` in terms of the `Identity` functor, the simplest functor there is—all it does is wrap a given datum `a` in an `Identity a`.
+These all have the same fundamental shape: they take some sort of
+algebra as their first (an F-algebra for `cata`, an R-algebra for
+`para`, a CV-algebra for `histo`), the fixed point of a functor
+on which to operate as their second argument, and return the
+result of collapsing that functor with the provided algebra.
+
+Bear with me for a second. Let's rephrase `cata` in terms of the `Identity` functor.
 
 ```haskell
-cata  :: (Base t (Identity a) -> a)        -> t -> a
-para  :: (Base t (t, a) -> a)              -> t -> a
-histo :: (Base t (Cofree (Base t) a) -> a) -> t -> a
+cata  :: (f (Identity a) -> a) -> Fix f -> a
+para  :: (f (Fix f, a) -> a)   -> Fix f -> a
+histo :: (f (Cofree f a) -> a) -> Fix f -> a
 ```
 
-The similarity in shape among these folds should be visible to you. **This is a hint.** The fact that all these fold functions accept a `Base t` over some collection type—an `Identity`, a tuple, a `Cofree`—and return a function of `t -> a`, is a sign that there's some generality that we're not taking advantage of.
+The similarity in shape among these folds should be visible to you.
+**This is a hint.** The fact that all these fold functions accept a
+`Base t` over some collection type—an `Identity`, a tuple, a
+`Cofree`—and return a function of `t -> a`, is a sign that there's
+some generality that we're not taking advantage of.
 
 
-They are all the same, save for the last parameter in the `Base` datum. This suggests that there's some way to generalize these three functions. But in order to do so, we need to have some sort of operation that encompasses operations on `Identity a`, `(t, a)`, and `Cofree (Base t) a`—what, in other words, do they have in common? Well, they're all comonads.
+They are all the same, save for the last parameter in the `Base`
+datum. This suggests that there's some way to generalize these three
+functions. But in order to do so, we need to have some sort of
+operation that encompasses operations on `Identity a`, `(t, a)`, and
+`Cofree (Base t) a`—what, in other words, do they have in common?
+Well, they're all comonads.
 
 ## Comonad
 
@@ -53,8 +75,8 @@ duplicate (Identity "hello")     ==> (Identity (Identity "hello"))
 duplicate ("hello", "goodbye")   ==> ("hello", ("hello", "goodbye"))
 ```
 
-This is a clue! There exists some function, a *generalized catamorphism*, that, given a function operating on the `Identity` comonad yields `cata`; 
-similarly, given a function over the tuple comonad `(, e)`, we should be able to yield `para`, and given something over `Cofree`, we will get `histo`. 
+This is a clue! There exists some function, a *generalized catamorphism*, that, given a function operating on the `Identity` comonad yields `cata`;
+similarly, given a function over the tuple comonad `(, e)`, we should be able to yield `para`, and given something over `Cofree`, we will get `histo`.
 
 ```
 gcata dist walg = walg . extract . c where
@@ -65,10 +87,10 @@ gcata dist walg = walg . extract . c where
 cata alg = c where c = alg . fmap c . project
 ```
 
-Like `cata`, `gcata` starts off by `project`ing its argument into a `Base` functor, then recursing, with `fmap` and the provided algebra, into the contents of that `Base` functor. Once we've reached the bottom of that `Base` functor, 
-we begin to fold the structure leaf-to-root. At that point we apply the algebra `f`.  At this point, `cata` has nothing left to do, since the F-algebra has yielded us a final result. 
+Like `cata`, `gcata` starts off by `project`ing its argument into a `Base` functor, then recursing, with `fmap` and the provided algebra, into the contents of that `Base` functor. Once we've reached the bottom of that `Base` functor,
+we begin to fold the structure leaf-to-root. At that point we apply the algebra `f`.  At this point, `cata` has nothing left to do, since the F-algebra has yielded us a final result.
 
-The same is not true with `gcata`—we have to do a few more gyrations to ensure we get an ordinary `a` value out of the ultimate result, rather than some result wrapped in the `w` comonad. 
+The same is not true with `gcata`—we have to do a few more gyrations to ensure we get an ordinary `a` value out of the ultimate result, rather than some result wrapped in the `w` comonad.
 What Kmett does here is extremely clever: he passes the result of applying the w-algebra to `duplicate`, which wraps the comonad `w` in another layer of `w`—an `Identity a` becomes an `Identity (Identity a)`, a tuple `(a, b)` becomes a tuple `(a, (a, b))`, and so on.
 At this point we have a `Base t (w (w a))`.
 At this point we apply the distributive law. That yields us a `w (Base t (w a))`.
@@ -93,7 +115,7 @@ newtype Identity a = Identity { runIdentity :: a } deriving Functor
 distIdentity :: Functor (Base t) => Base t (Identity a) -> Identity (Base t a)
 ```
 
-The functor instance for `Base t` gives us `fmap`, which operates on the contained value, and `runIdentity` gives us a way to extract that value. 
+The functor instance for `Base t` gives us `fmap`, which operates on the contained value, and `runIdentity` gives us a way to extract that value.
 
 ```
 distIdentity =   fmap runIdentity -- given a 'Base t (Identity a)', yields a 'Base t a'
@@ -114,17 +136,17 @@ The distributive law for `para`, over the tuple comonad, is a little bit more co
 distTuple :: Corecursive t => Base t (t, a) -> (t, Base t a)
 ```
 
-Given a `Base t` containing a tuple `(t, a)`, we have to pull that contained `t` out while preserving the `a` contained therein. And because we don't know anything about the shape of the `Base` functor with which we're provided, we can't pattern-match. 
+Given a `Base t` containing a tuple `(t, a)`, we have to pull that contained `t` out while preserving the `a` contained therein. And because we don't know anything about the shape of the `Base` functor with which we're provided, we can't pattern-match.
 However, the `Corecursive` instance gives us `embed`, and because `Corecursive` implies `Functor`, we can `fmap` onto the contents of that `Base`. Along with the built in `fst` and `snd` functions, we can do it too:
 
 ```
-distTuple b = (justT, baseA) 
+distTuple b = (justT, baseA)
 	where baseT = fmap fst b  -- given a 'Base t (t, a)', yields a 'Base t t'
 	      justT = embed baseT -- given a 'Base t t', yields a t
 		  baseA = fmap snd b  -- given a 'Base t (t, a)', yields a 'Base t a'
 ```
 
-Finally, we need one for `Cofree`. 
+Finally, we need one for `Cofree`.
 
 ``` haskell
 distHisto :: Functor f => f (Cofree f a) -> Cofree f (f a)
