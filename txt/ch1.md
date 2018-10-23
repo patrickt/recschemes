@@ -161,7 +161,7 @@ Our first formulation of `Expr`, since its recursive subfields were of type `Exp
 
 In order for the parameterized definition of `Expr` to be equal to our original formulation, we have to assume that there exists a type such that, when substituted for `a` in the definition of `Expr a`, yields an expression with arbitrarily-nested `Expr` subexpressions.
 
-```
+```haskell
 type NestedExpr = Expr (Expr (Expr (Expr …)))
 ```
 
@@ -209,9 +209,8 @@ From this definition, we can see that, given a `Term Expr`, we can use the `out`
 
 At this point, we're well grounded in defining our data types with fixed-points of functors. Let's do something awesome with them.
 
-Consider the notion of the bottom-up traversal: specifically, let's write pseudo-English instructions for traversing the fixed-point of a functor:
+Consider the notion of the bottom-up traversal: specifically, the following algorithm for traversing the fixed-point of a functor:
 
-To traverse a Term bottom-up with a function ƒ:
 1. Unpack the term so as to access its children.
 2. Recursively traverse each child of the unpacked term with ƒ.
 3. Repack the term.
