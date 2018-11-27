@@ -193,7 +193,7 @@ But in order for our assumption about the type variable =a= to hold true, we nee
 Consider the Y-combinator. Given a function f that takes one argument, =y(f)= represents the result of repeatedly applying =f= to itself:
 
 #+BEGIN_SRC
-y(f) = f(f(f(f(f ...))))
+y f = f (f (f (f ...)))
 #+END_SRC
 
 The sharp-eyed will have noticed that the expansion of =y(f)= is very similar to our =NestedExpr= type above. If we have a Y-combinator embedded entirely /in the type system/, we can describe the repeated application of =Expr= to itself, in a manner identical to how the value-level Y-combinator operators on functions, and in turn we can describe an =Expr a= where =a= represents arbitrarily-nested =Expr=s.
@@ -262,7 +262,7 @@ bottomUp fn =
   >>> fn                 -- 4) apply
 #+END_SRC
 
-And there it is, our first recursion scheme. In writing =bottomUp= we have developed a type-safe /and/ type-generic combinator for recursively transforming /any/ Functor: whether it's our =Expr= type from earlier, a list, a rose tree, or anything else. This is, frankly, kind of amazing. As such, let's rewrite our original =flatten= function so that it operates on =Term=s that wrap arbitrarily-nested =Expr=s:
+And there it is, our first recursion scheme. In writing =bottomUp= we have developed a type-safe /and/ type-generic combinator for recursively transforming /any/ Functor: whether it's our =Expr= type from earlier, a list, a rose tree, or anything else. This is, frankly, kind of amazing. As such, let's rewrite our original =flatten= function so that it operates on =Term= values that wrap arbitrarily-nested =Expr= values:
 
 #+BEGIN_SRC haskell :tangle ../src/Part1.hs
 flattenTerm :: Term Expr' -> Term Expr'
@@ -291,11 +291,11 @@ To traverse a Term top-down with a function ƒ, we:
 These instructions are elegantly symmetrical with the ones for our bottom-up traversal---if you read the instructions in reverse and replace occurrences of "unpack" and "repack", they are identical. And here's the kicker: our code can capture this. We can express this notion of "reading in reverse" by replacing occurrences of the left-to-right operator =>>>= with =<<<=, the right-to-left operator[fn:composition], and we swap "unpack" and "repack" with =out= and =In=.
 
 #+BEGIN_SRC haskell
-    topDown, bottomUp :: Functor f => (Term f -> Term f) -> Term f -> Term f
+topDown, bottomUp :: Functor f => (Term f -> Term f) -> Term f -> Term f
 
-    topDown f  = In <<< fmap (topDown f) <<< out <<< f
+topDown f  = In <<< fmap (topDown f) <<< out <<< f
 
-    bottomUp f = out >>> fmap (bottomUp f) >>> In >>> f
+bottomUp f = out >>> fmap (bottomUp f) >>> In >>> f
 #+END_SRC
 
 The fact that we can express the duality between top-down and bottom-up traversals merely by "reversing the arrows" that determine our code's flow, all the while retaining generality and type safety, is nothing short of amazing. That these definitions emerged naturally out of fixed-points and functors, two concepts central to Haskell and to functional programming in general, is doubly amazing.
@@ -342,8 +342,8 @@ spec = do
 
 [fn:notation] Rather than tying /Bananas, Lenses, Envelopes and Barbed Wire/ to any particular programming language, Meijer et. al used notation derived from [[http://en.wikipedia.org/wiki/Bird–Meertens_Formalism][Bird-Meertens formalism]], a calculus of program construction based on recursion schemes. Meijer's Ph.D. thesis discussed compiler specifications using this notation, which was also known as Squiggol, after its 'squiggly' notation. Though this notation is well-specified, its syntactic constructions, featuring elements such as "banana brackets" and "concave lenses", is somewhat abstruse.
 
-[fn:fixed]: A complete discussion of the beauty and notability of fixed-point combinators is beyond the scope of this article: for such explorations, please refer to Raymond Smullyan's wonderful [[http://www.amazon.com/To-Mock-Mockingbird-Other-Puzzles/dp/0192801422][/To Mock a Mockingbird/]] or Reginald Braithwaite's [[https://leanpub.com/combinators][Kestrels, Quirky Birds, and Hopeless Egocentricity]].
+[fn:fixed] A complete discussion of the beauty and notability of fixed-point combinators is beyond the scope of this article: for such explorations, please refer to Raymond Smullyan's wonderful [[http://www.amazon.com/To-Mock-Mockingbird-Other-Puzzles/dp/0192801422][/To Mock a Mockingbird/]] or Reginald Braithwaite's [[https://leanpub.com/combinators][Kestrels, Quirky Birds, and Hopeless Egocentricity]].
 
 [fn:fmap] You may be curious as to why Haskell provides both =map= and =fmap= functions in its Prelude, considering that =map= is just a version of =fmap= that can only operate on lists. This has indeed been a bone of contention within the Haskell community. As Brent Yorgey, author of the essential [[http://www.haskell.org/haskellwiki/Typeclassopedia#Instances][Typeclassopedia]], put it: "the usual argument is that someone just learning Haskell, when using =map= incorrectly, would much rather see an error about lists than about =Functor=s."
 
-[fn:composition] This function is provided by the Prelude with the =.= operator.
+[fn:composition] This function is provided by the Haskell prelude with the =.= operator.
