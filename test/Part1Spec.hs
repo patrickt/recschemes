@@ -11,7 +11,7 @@ spec = do
   let flattened = Index (Literal (Ident "anArray")) (Literal (IntLit 10))
 
   describe "manual flatten" $
-    it "should flatten (((anArray[(10)]))) into anArray[10]" $ 
+    it "should flatten (((anArray[(10)]))) into anArray[10]" $
       flatten nested `shouldBe` flattened
 
   describe "flatten with applyExpr" $

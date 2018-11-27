@@ -19,7 +19,7 @@ I've chosen to express the ideas in /Bananas, Lenses, Envelopes and Barbed Wire/
 
 I'll start with the simplest way to represent a well-typed syntax tree, then show how that simplicity makes it difficult to write a function that generically traverses and modifies trees. I'll then redefine our syntax tree so as to take advantage of existing Haskell idioms and the expressive power of parameterized data types. Finally, I'll show how recursion schemes emerge naturally when we express step-by-step descriptions of recursion patterns with common Haskell idioms.
 
-#+BEGIN_SRC haskell :tangle Part1.hs :exports none
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs :exports none
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -44,7 +44,7 @@ import           Control.Arrow
 
 Let's take a look at the simplest way to represent a syntax tree in Haskell: an ordinary algebraic datatype.
 
-#+BEGIN_SRC haskell :tangle Part1.hs
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs
 data Lit
   = StrLit String
   | IntLit Int
@@ -73,7 +73,7 @@ data Stmt
 
 This is a perfectly adequate syntax tree: it's simple, straightforward, and works nicely with parsing libraries such as [[http://hackage.haskell.org/package/attoparsec][attoparsec]] or [[http://tanakh.github.io/Peggy/][Peggy]]. Yet writing a function that operates on a =Expr= node and all its subexpressions is a tedious exercise indeed: here's an example that flattens an =Expr=, recursively removing all =Paren= nodes:
 
-#+BEGIN_SRC haskell :tangle Part1.hs
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs
 -- this would turn the expression
 --    (((anArray[(10)])))
 -- into
@@ -99,7 +99,7 @@ This isn't good code. It's clumsy. Four out of this function's six lines are ded
 
 We can, however, bring some sanity to this madness by writing a function =apply= that, given a function =f= operating on =Expr=s, applies =f= to each subexpression of a given =Expr=:
 
-#+BEGIN_SRC haskell :tangle Part1.hs
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs
 applyExpr :: (Expr -> Expr) -> Expr -> Expr
 -- base case: applyExpr is the identity function on constants
 applyExpr f (Literal i) = Literal i
@@ -114,9 +114,10 @@ applyExpr f (Binary l op r) = Binary (f l) op (f r)
 
 This function decouples the definition of a recursive function from its recursive application. with it, we can reduce our six-line definition of flatten to two lines. In the body of =flatten=, we need only specify that =Paren= nodes be treated differently than other nodes, relying on the =applyExpr= function to take care of recursion for us:
 
-#+BEGIN_SRC haskell :tangle Part1.hs
-flatten (Paren e) = flatten e
-flatten x = applyExpr flatten x
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs
+flatten' :: Expr -> Expr
+flatten' (Paren e) = flatten e
+flatten' x = applyExpr flatten x
 #+END_SRC
 
 This function just got far, far easier to write and maintain. The =apply= function is now responsible for both the base case and the simple recursive case of flattening an expression: all we have to do is define the interesting case, i.e. its handling of =Paren= nodes. Awesome.
@@ -160,14 +161,14 @@ class Functor f where
 
 Countless datatypes---lists, trees, optional (=Maybe=) values, IO actions, even functions themselves---implement the =Functor= typeclass. Indeed, it's so common, and implementing =fmap= is usually so straightforward, that GHC provides a built-in mechanism to write the definition of =fmap= for you: with GHC's =DeriveFunctor= extension, we can just add =Functor= to the list of classes our =Expr= declaration derives, alongside =Show= and =Eq=:
 
-#+BEGIN_SRC haskell tangle:Part1.hs
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs
 data Expr' a
-  = Index a a
-  | Call [a]
-  | Unary String a
-  | Binary a String a
-  | Paren a
-  | Literal Lit
+  = Index' a a
+  | Call' [a]
+  | Unary' String a
+  | Binary' a String a
+  | Paren' a
+  | Literal' Lit
   deriving (Show, Eq, Functor) -- fmap for free
 #+END_SRC
 
@@ -215,7 +216,7 @@ out (In t) = t
 
 It's illuminating to substitute =Expr= in for the type variable =f= in this equation, in order to see what it looks like to construct and deconstruct the fixed-point of an =Expr= value. Using GHC's =TypeApplications= extension to specialize =f= to et's ask GHCi the type signature of =In= over =Expr'= values.
 
-#+BEGIN_SRC haskell :results output
+#+BEGIN_SRC haskell :results output :exports both
 :t In @Expr' :: Expr' (Term Expr') -> Term Expr'
 #+END_SRC
 
@@ -226,8 +227,15 @@ This tells us that in order to end up with a =Term Expr'= we have to pass an =Ex
 
 But a more idiomatic way to declare this is to use a record field rather than declaring an unwrapper function, and to make this declaration a =newtype=, which allows GHC to optimize out construction and deconstruction of =Term= values with =In= and =out=.
 
-#+BEGIN_SRC haskell :tangle Part1.hs
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs
 newtype Term f = In { out :: f (Term f) }
+#+END_SRC
+
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs :exports none
+-- These instances are pretty sinful, but we'll use them for now
+-- rather than complicating things with Eq1 and Show1.
+deriving instance (Eq (f (Term f))) => Eq (Term f)
+deriving instance (Show (f (Term f))) => Show (Term f)
 #+END_SRC
 
 From these definitions, we can see that, given a =Term Expr=, we can use the =out= function to convert it to an =Expr= the subexpressions of which are, in turn =Term Expr=s. That means that we can unwrap a =Term Expr= into an /arbitrarily-nested/ =Expr= through successive applications of =out=: our =Term Expr= can expand into an =Expr (Term Expr)=, which can expand into an =Expr (Expr (Term Expr))=, and so on and so forth. This style of defining recursive types using fixed-points of functors is an example of /codata/. A full discussion of the theory behind codata (and the many different forms that codata can take) is, unfortunately, beyond the scope of this article; I recommend [[http://www.tac-tics.net/data-vs-codata][this]] excellent introduction.
@@ -243,13 +251,10 @@ Consider the notion of the bottom-up traversal: specifically, the following algo
 3. Repack the term.
 4. Apply ƒ to it.
 
-We have the tools to express each step of this procedure---let's call it =bottomUp.=
+We have the tools to express each step of this procedure---let's call it =bottomUp=.
 
-#+BEGIN_SRC haskell
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs
 bottomUp :: Functor a => (Term a -> Term a) -> Term a -> Term a
-#+END_SRC
-
-#+BEGIN_SRC haskell
 bottomUp fn =
   out                    -- 1) unpack
   >>> fmap (bottomUp fn) -- 2) recurse
@@ -259,13 +264,13 @@ bottomUp fn =
 
 And there it is, our first recursion scheme. In writing =bottomUp= we have developed a type-safe /and/ type-generic combinator for recursively transforming /any/ Functor: whether it's our =Expr= type from earlier, a list, a rose tree, or anything else. This is, frankly, kind of amazing. As such, let's rewrite our original =flatten= function so that it operates on =Term=s that wrap arbitrarily-nested =Expr=s:
 
-#+BEGIN_SRC haskell
-flattenTerm :: Term Expr -> Term Expr
-flattenTerm (In (Paren e)) = e  -- remove all Parens
+#+BEGIN_SRC haskell :tangle ../src/Part1.hs
+flattenTerm :: Term Expr' -> Term Expr'
+flattenTerm (In (Paren' e)) = e  -- remove all Parens
 flattenTerm other = other       -- do nothing otherwise
 
-flatten :: Term Expr -> Term Expr
-flatten = bottomUp flattenTerm
+flatten'' :: Term Expr' -> Term Expr'
+flatten'' = bottomUp flattenTerm
 #+END_SRC
 
 Given a function =fn= from =Term=s to =Term=s, we'll unpack the =Term= with the =out= function, recursively traverse each child of the unpacked term with =fmap (bottomUp fn)=, repack the term with the =In= constructor, and then simply apply =fn= to the result. The =fmap bottomUp= call does all the heavy lifting in this function: it captures the act of recursing into each child (if any) of a given functor.
