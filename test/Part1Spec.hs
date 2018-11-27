@@ -21,10 +21,10 @@ spec = do
   describe "flatten with bottomUp" $
     it "should also do the same thing" $
       let
-        index a b = In (Index' a b)
-        paren a = In (Paren' a)
-        lit i = In (Literal' (IntLit i))
-        name n = In (Literal' (Ident n))
+        index a b = In (IndexF a b)
+        paren a = In (ParenF a)
+        lit i = In (LiteralF (IntLit i))
+        name n = In (LiteralF (Ident n))
         nested' = index (paren (paren (paren (name "anArray")))) (paren (lit 10))
         flattened' = index (name "anArray") (lit 10)
       in flatten'' nested' `shouldBe` flattened'

@@ -6,7 +6,8 @@ module Part1
   ( Expr (..)
   , Lit (..)
   , Term (..)
-  , Expr' (..)
+  , ExprF (..)
+  , Expr'
   , flatten
   , flatten'
   , flatten''
@@ -41,13 +42,18 @@ data Stmt
   | Expression Expr
   deriving (Show, Eq)
 
+-- this would turn the expression
+--    (((anArray[(10)])))
+-- into
+--    anArray[10]
+
 flatten :: Expr -> Expr
 -- base case: do nothing to literals
-flatten (Literal i)     = Literal i
+flatten (Literal i) = Literal i
 
 -- this is the important case: we shed the Paren constructor and just
 -- apply `flatten` to its contents
-flatten (Paren e)       = flatten e
+flatten (Paren e) = flatten e
 
 -- all the other cases preserve their constructors and just apply
 -- the flatten function to their children that are of type `Expr`.
@@ -58,30 +64,31 @@ flatten (Binary l op r) = Binary (flatten l) op (flatten r)
 
 applyExpr :: (Expr -> Expr) -> Expr -> Expr
 -- base case: applyExpr is the identity function on constants
-applyExpr f (Literal i)     = Literal i
+applyExpr f (Literal i) = Literal i
 
 -- recursive cases: apply f to each subexpression
-applyExpr f (Paren p)       = Paren (f p)
-applyExpr f (Index e i)     = Index (f e) (f i)
-applyExpr f (Call e args)   = Call (f e) (map f args)
-applyExpr f (Unary op arg)  = Unary op (f arg)
+applyExpr f (Paren p) = Paren (f p)
+applyExpr f (Index e i) = Index (f e) (f i)
+applyExpr f (Call e args) = Call (f e) (map f args)
+applyExpr f (Unary op arg) = Unary op (f arg)
 applyExpr f (Binary l op r) = Binary (f l) op (f r)
 
 flatten' :: Expr -> Expr
-flatten' (Paren e) = flatten' e
-flatten' x         = applyExpr flatten' x
+flatten' (Paren e) = flatten e
+flatten' x = applyExpr flatten x
 
-data Expr' a
-  = Index' a a
-  | Call' a [a]
-  | Unary' String a
-  | Binary' a String a
-  | Paren' a
-  | Literal' Lit
-  deriving (Show, Eq, Functor)
+data ExprF a
+  = IndexF a a
+  | CallF [a]
+  | UnaryF String a
+  | BinaryF a String a
+  | ParenF a
+  | LiteralF Lit
+  deriving (Show, Eq, Functor) -- fmap for free
+
+type Expr' = Term ExprF
 
 newtype Term f = In { out :: f (Term f) }
-
 
 -- These instances are pretty sinful, but we'll use them for now
 -- rather than complicating things with Eq1 and Show1.
@@ -95,9 +102,9 @@ bottomUp fn =
   >>> In                 -- 3) repack
   >>> fn                 -- 4) apply
 
-flattenTerm :: Term Expr' -> Term Expr'
-flattenTerm (In (Paren' e)) = e  -- remove all Parens
-flattenTerm other           = other       -- do nothing otherwise
+flattenTerm :: Expr' -> Expr'
+flattenTerm (In (ParenF e)) = e  -- remove all Parens
+flattenTerm other = other       -- do nothing otherwise
 
-flatten'' :: Term Expr' -> Term Expr'
+flatten'' :: Expr' -> Expr'
 flatten'' = bottomUp flattenTerm
