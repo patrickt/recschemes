@@ -1,11 +1,4 @@
-In these entries I've tried to emphasize how useful recursion schemes
-are in a real-world context. The subject under discussion
-today—Uustalu, Tarmo, and Vene's [Recursion Schemes from
-Comonads][rsfc]—is, I have to admit, not flush with potential
-real-world applications. However, it is very beautiful, and beauty is
-a worthy goal in itself.
-
-Let's take a look at the various folds we've described thus far.
+Let's take a look at the folds we've described thus far, in order of
 
 ``` haskell
 cata  :: (f a -> a)            -> Fix f -> a

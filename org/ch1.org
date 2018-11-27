@@ -1,0 +1,23 @@
+# -*- coding: utf-8 -*-
+#+TITLE:  An Introduction to Recursion Schemes
+#+AUTHOR: Patrick Thomson
+#+EMAIL:  patrick.william.thomson@gmail.com
+#+DATE:   <2014-02-15>
+#+LANGUAGE: en
+
+#+OPTIONS: ':t toc:nil
+
+#+PANDOC_OPTIONS: wrap:none
+#+PANDOC_EXTENSIONS: markdown+footnotes
+
+* body
+
+In 1991, Erik Meijer, Maarten Fokkinga, and Ross Paterson published their now-classic paper /[[https://eprints.eemcs.utwente.nl/7281/01/db-utwente-40501F46.pdf][Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire]]/. Though this paper isn't widely known outside of the functional programming community, its contributions are astonishing: the authors use category theory to express a set of simple, composable combinators, called recursion schemes, that automate the process of traversing and recursing through nested data structures. Though recursion schemes predate Meijer et. al's work, this paper brings the enormous abstractive power of category theory to bear on the subject of traversing data structures---it's a magnificent example of how category-theoretical concepts can bring both rigor and simplicity to day-to-day programming tasks.
+
+Because nested structures appear in almost every problem domain and programming environment, from databases to 3D graphics to filesystems, the act of iterating through these structures is common, so common that most programmers barely notice when they're doing it. As such, generalizing the act of recursive traversals provides immediate real-world benefits: our new generalized traversal can replace a host of type-specific traversal functions. In addition, by decoupling /how/ a function recurses over data from /what/ the function actually does, we reduce cognitive overhead and can focus entirely on the core behavior of our recursive functions. No matter the structures in question—lists, directory hierarchies, control flow graphs, database records—recursion schemes bring us an orderly and predictable way to traverse them. In addition, recursion schemes aren't a product of any one programming language or environment—you can express recursion schemes in any language with first-class functions. Clojure, for example, uses them to power its [[http://richhickey.github.io/clojure/clojure.walk-api.html][=clojure.walk=]] API for generically traversing s-expressions and maps.
+
+Meijer et. al go so far as to condemn functional programming without recursion schemes as morally equivalent to imperative programming with =goto=. While comparisons to Djikstra's [[https://homepages.cwi.nl/~storm/teaching/reader/Dijkstra68.pdf][infamous letter to the ACM]] are often inane, the analogy is apt: just as using =while= and =for= loops rather than `goto` brings structure and harmony to imperative control flow, the use of recursion schemes over hand-written brings similar structure to recursive computations. This insight is so important that I'll repeat it: /recursion schemes are just as essential to idiomatic functional programming as `for` and `while` are to idiomatic imperative programming/.
+
+I've chosen to express the ideas in /Bananas, Lenses, Envelopes and Barbed Wire/ in Haskell, though the paper was written years before Haskell came to prominence[fn:notation]. If you don't know Haskell very well, *don't panic*: you don't need to be a Haskell whiz to understand the ideas presented here. I assume only a basic familiarity with [[http://cheatsheet.codeslower.com/CheatSheet.pdf][Haskell syntax]] and the use of [[http://learnyouahaskell.com/making-our-own-types-and-typeclasses][algebraic data types]]. I'm going to rely on a few idioms to better illustrate the concepts underlying recursion schemes---when I do, I will explain what happens behind the scenes. If you're wholly unfamiliar with Haskell, you may want to dip into the first few chapters of [[http://learnyouahaskell.com][Learn You a Haskell]].
+
+[fn:notation] Rather than tying /Bananas, Lenses, Envelopes and Barbed Wire/ to any particular programming language, Meijer et. al used notation derived from [[http://en.wikipedia.org/wiki/Bird–Meertens_Formalism][Bird-Meertens formalism]], a calculus of program construction based on recursion schemes. Meijer's Ph.D. thesis discussed compiler specifications using this notation, which was also known  was also known as "Squiggol", after its "squiggly" notation. Though this notation is well-specified, its syntactic constructions, featuring elements such as "banana brackets" and "concave lenses", is somewhat abstruse.

@@ -1,0 +1,168 @@
+# -*- coding: utf-8 -*-
+#+TITLE: Recursion Schemes, Part 6: Comonads, Composition, and Vocabulary
+#+AUTHOR: Patrick Thomson
+#+EMAIL: patrick.william.thomson@gmail.com
+
+This article uses the =Base=-functor formulation of recursion schemes,
+as described in Ed Kmett's [[http://hackage.haskell.org/package/recursion-schemes-5.0.3/docs/Data-Functor-Foldable.html][recursion-schemes]] library. If you want an
+overview of why this formulation is useful, my [[https://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/][prior post]] on the matter
+may be helpful.
+
+The essence of Haskell is composition. Why, then, can I not build new
+recursion schemes out of the existing ones? I have =para=, which lets
+me look at the original values alongside the fold's values in-flight,
+and =histo=, which provides a lookup table for previously calculated
+compositions, but what if I need both these properties to define a
+given fold? Or what if I want to create a new =hylo=-esque combinator
+out of the composition of a histomorphism and an apomorphism?
+
+** Lurking Similarities
+
+
+
+** A Comonad of One's Own
+
+Given the generalized catamorphism =gcata=, we know that the
+histomorphism emerges from the =Cofree= comonad and the paramorphism
+from the =Env= comonad. It follows that to build a morphism that
+combines the capabilities of =histo= and =para=, we'll need a
+comonad that combines =Cofree= and =Env=. Let's do that, and let's
+call it =Ledger=, as the purpose of this data structure is to record
+both inputs and outputs, much as an accountant's ledger records
+income and expenditures.
+
+#+NAME: ledger-def
+#+BEGIN_SRC haskell
+newtype Ledger t f a = Ledger { runLedger :: EnvT t (Cofree f) a } deriving Functor
+#+END_SRC
+
+The core of this definition is =Cofree f=, which the histomorphism uses
+to provide a cache of previously-computed values. We then wrap that core
+inside the =EnvT t= comonad transformer, which provides us access to a
+historical =t= value. (If this reminds you of building monad transformers
+with the =mtl= library, you've got it---except here we're building
+comonads rather than monads.)
+
+Due to a limitation of GHC, we can't automatically derive an
+instance of =Comonad= for =Ledger=, but it's not too painful to do so:
+
+#+BEGIN_SRC haskell
+instance Functor f => Comonad (Ledger t f)
+  extract = extract . runLedger
+  duplicate l@(Ledger e) = Ledger (l <$ e)
+#+END_SRC
+
+For the purposes of ergonomics, we'll use interfaces provided by the
+=comonad= package to provide fluent access to the general capabilities
+of the =Ledger= comonad. Firstly, we'll define a =ComonadEnv= instance,
+which lets us extract the stored =t= val from any =Ledger t f a=.
+(I've annotated the =ask= method with its signature, thanks to GHC's
+=InstanceSigs= extension, for the sake of clarity.)
+
+#+BEGIN_SRC haskell
+instance Functor f => ComonadEnv t (Ledger t f) where
+  ask :: Ledger t f a -> t
+  ask = runLedger >>> ask -- just delegate to EnvT's ask
+#+END_SRC
+
+This lets us =ask=, at each stage of a =Ledger=-algebra, for the
+original value upon which this stage is operating. Similarly, a
+=ComonadCofree= instance lets us, given a =Ledger t f a=, extract one
+level of the =f= functor with the =unwrap= method. Calling =unwrap= gets
+us one level of =f=-history; calling =unwrap= on the values contained in
+that =f= gets us two levels, etc.
+
+#+BEGIN_SRC haskell
+instance Functor f => ComonadCofree f (Ledger t f) where
+  unwrap :: Ledger t f a -> f (Ledger t f a)
+  unwrap = runLedger >>> unwrap >>> fmap Ledger -- delegate to EnvT+Cofree's unwrap
+#+END_SRC
+
+Now that we have =Ledger= and its =Comonad=, =ComonadEnv=, and
+=ComonadCofree= instances, we have sufficient vocabulary to be fluent
+in the definition of =Ledger=-assisted recursion schemes. But before
+we can execute such a scheme, we need a distributive law.
+
+** The Means of Distribution
+
+I am not a mathematician. Nor am I a type theorist, nor a category
+theorist---I am a software engineer. And in the grand tradition of
+software engineers everywhere, let's begin the process of writing a
+distributive law for =Ledger= by attempting to copy what other,
+smarter people have laid down before. Specifically, let's start with
+the distributive laws for =histo=, to wit:
+
+#+BEGIN_SRC haskell
+histo     :: Recursive t => (Base t (Cofree (Base t) a) -> a) -> t -> a
+distHisto :: Functor f   => f (Cofree f a) -> Cofree f (f a)
+#+END_SRC
+
+"Okay," I originally thought, flush with optimism and overconfidence,
+"this should be straightforward. My distributive law should take an
+=f= containing =Ledger t f a= values, and return a =Ledger t f=
+containing =f a= values."
+
+#+BEGIN_SRC haskell
+badDistLedger :: Functor f => f (Ledger t f a) -> Ledger t f (f a)
+#+END_SRC
+
+As you may have inferred from the tone of my narration, I was wrong.
+No amount of pleading with GHC would suffice, because I needed to
+distribute not just over the =Cofree f= at the core of the =Ledger=,
+but also over the =EnvT= wrapped around the =Cofree=. "Fine, then,"
+I said, flush again with optimism, "I'll compose =distHisto= with
+=distPara=, which makes sense given that =Ledger= is the composition
+of =Cofree= inside an =EnvT=." But =distPara= didn't look like what
+I was looking for either. Sure, it adequately conveyed, with a
+=(t, a)= pair, the notion of in-flight =a= values paired with their
+original =t= values, but nowhere did it mention =Env= or =EnvT=.
+
+#+BEGIN_SRC haskell
+para     :: (Base t (t, a) -> a) -> t -> a
+distPara :: Corecursive t => Base t (t, a) -> (t, Base t a)
+#+END_SRC
+
+Yet beneath =distPara= there lurked an even less-comprehensible function,
+=distParaT=. No docstrings were present regarding its purpose or the
+function of its arguments, but it had something =distPara= didn't: a
+mention of =EnvT=.
+
+#+BEGIN_SRC haskell
+distParaT :: (Corecursive t, Comonad w)
+          => (forall b. Base t (w b) -> w (Base t b))
+          -> Base t (EnvT t w a)
+          -> EnvT t w (Base t a)
+#+END_SRC
+
+Unlike =distPara= or =distHisto=, =distParaT= takes two arguments. The
+first one looked remarkably like a distributive law itself. On a lark,
+I tried asking GHCi what happens if I pass =distHisto= as the first
+argument of =distParaT=:
+
+#+BEGIN_SRC haskell
+λ> :t distParaT distHisto
+
+distParaT distHisto
+  :: Corecursive t
+  => Base t (EnvT t (Cofree (Base t)) a)
+  -> EnvT t (Cofree (Base t)) (Base t a)
+#+END_SRC haskell
+
+This, I realized, was much closer to what I wanted. That =EnvT t
+(Cofree (Base t))= was precisely the shape of my =Ledger= newtype
+applied to a =Base t=. Indeed, if we go through this type signature and
+replace every =EnvT t (Cofree f) a= with a =Ledger t f a=, we yield a
+type signature corresponding to the distributive law for =Ledger=!
+
+#+BEGIN_SRC haskell
+distLedger :: Corecursive t => Base t (Ledger t (Base t) a) -> Ledger t (Base t) (Base t a)
+#+END_SRC
+
+Following this type, we can implement =distLedger= atop the core that is
+=distParaT distHisto=. All we have to do is unwrap the =Ledger= values inside
+the =Base t= functor, apply the distributive law yielded from =distParaT=,
+then repack the result of that distribution in a =Ledger=.
+
+#+BEGIN_SRC haskell
+distLedger = fmap runLedger >>> distParaT distHisto >>> Ledger
+#+END_SRC
