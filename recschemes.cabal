@@ -18,7 +18,6 @@ library
                        Part3
                        Part4
                        Part4Point5
-                       Part5
   build-depends:       base >= 4.7 && < 5
                      , boxes
                      , containers
@@ -57,7 +56,6 @@ test-suite recschemes-test
                        Part2Spec
                        Part3Spec
                        Part4Spec
-                       Part5Spec
   build-depends:       base
                      , random
                      , recschemes
