@@ -152,6 +152,14 @@ distHisto = Cofree.unfold cofreeToTuple where
 	cofreeToTuple f = (fmap extract f, fmap Cofree.unwrap f)
 ```
 
-Rather than diving into the rich details of `Cofree`, for our purposes it'll be good enough to say that `unfold`, given a seed, generates a `Cofree` out of a function that returns, at each stage of the unfold, a value and some further seed with which to continue. Remember that `Cofree` is analogous to an infintely-nested tuple; we can't write an infinitely-nested tuple in Haskell, but we can hand a tuple of value and seed to `unfold` and it will take care of creating one for us.[^1]
+Rather than diving into the rich details of `Cofree`, for our purposes
+it'll be good enough to say that `unfold`, given a seed, generates a
+`Cofree` out of a function that returns, at each stage of the unfold,
+a value and some further seed with which to continue. Remember that
+`Cofree` is analogous to an infintely-nested tuple; we can't write an
+infinitely-nested tuple in Haskell, but we can hand a tuple of value
+and seed to `unfold` and it will take care of creating one for us.[^1]
+
+Indeed it makes it less a zoo and more a pegboard
 
 [^1]: I usually try to provide explicit types for all my helper functions, but `cofreeToTuple`'s is a touch intimidating: `f (Cofree f a) -> (f a, f (f (Cofree f a)))`.

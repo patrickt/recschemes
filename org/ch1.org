@@ -245,7 +245,7 @@ deriving instance (Eq (f (Term f))) => Eq (Term f)
 deriving instance (Show (f (Term f))) => Show (Term f)
 #+END_SRC
 
-From these definitions, we can see that, given a =Term Expr=, we can use the =out= function to convert it to an =Expr= the subexpressions of which are, in turn =Term Expr=s. That means that we can unwrap a =Term Expr= into an /arbitrarily-nested/ =Expr= through successive applications of =out=: our =Term Expr= can expand into an =Expr (Term Expr)=, which can expand into an =Expr (Expr (Term Expr))=, and so on and so forth. This style of defining recursive types using fixed-points of functors is an example of /codata/. A full discussion of the theory behind codata (and the many different forms that codata can take) is, unfortunately, beyond the scope of this article; I recommend [[http://www.tac-tics.net/data-vs-codata][this]] excellent introduction.
+From these definitions, we can see that, given a =Term Expr=, we can use the =out= function to convert it to an =Expr= the subexpressions of which are, in turn =Term Expr= values. That means that we can unwrap a =Term Expr= into an /arbitrarily-nested/ =Expr= through successive applications of =out=: our =Term Expr= can expand into an =Expr (Term Expr)=, which can expand into an =Expr (Expr (Term Expr))=, and so on and so forth. This style of defining recursive types using fixed-points of functors is an example of /codata/. A full discussion of the theory behind codata (and the many different forms that codata can take) is, unfortunately, beyond the scope of this article; I recommend [[http://www.tac-tics.net/data-vs-codata][this]] excellent introduction.
 
 * Generic Traversals
 
