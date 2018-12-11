@@ -24,7 +24,7 @@ import           Data.Function
 import           Data.Monoid
 import           Data.String
 import           Text.PrettyPrint (Doc)
-import qualified Text.PrettyPrint as P
+import qualified Text.PrettyPrint as Pretty
 
 type RAlgebra f a = f (Term f, a) -> a
 

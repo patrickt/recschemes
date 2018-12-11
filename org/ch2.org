@@ -196,7 +196,7 @@ import qualified Text.PrettyPrint as P
 prettyPrint :: Algebra Expr Doc
 #+END_SRC
 
-Again, expanding the type synonym yields us a function type, going from =Expr=s with values of type =Doc= as their subexpressions, out to a final =Doc= value. These values represent the leaves of the nodes that have already been pretty-printed.
+Again, expanding the type synonym yields us a function type, going from =Expr= values containing =Doc= values as their subexpressions, out to a final =Doc= value. These values represent the leaves of the nodes that have already been pretty-printed.
 
 #+BEGIN_SRC haskell :tangle ../src/Part2.hs
 prettyPrint :: Expr Doc -> Doc
@@ -236,19 +236,15 @@ bottomUp f = cata (In >>> f)
 
 *** Laws
 
-This formulation of recursive traversals sure is elegant---but elegance isn't enough. THe real reason to use catamorphisms is that every catamorphism obeys a set of laws.[fn:6]
-
-**** The Identity Law
-
-The simplest law is the identity law:
+This formulation of recursive traversals sure is elegant---but elegance isn't enough. The real reason to use catamorphisms is that every catamorphism obeys a set of laws.[fn:6] The simplest law is the identity law:
 
 #+BEGIN_SRC haskell
 cata In = id
 #+END_SRC
 
-This is pretty straightforward. The =In= constructor, which provides the fixed-point of a functor, is the simplest algebra: given a functor =f= wrapping a =Term f=, it turns it into a =Term f=, leaving the value untouched. And iterating over the contents of a structure without changing them is clearly the identity function.
+This is pretty straightforward. The =In= constructor, which provides the fixed-point of a functor, is the simplest algebra: given a functor =f= wrapping a =Term f=, it turns it into a =Term f=, leaving the value untouched. And iterating over the contents of a structure without changing them is clearly the identity function. 
 
-Catamorphisms can also /fuse/.
+Catamorphisms can also /fuse/:
 
 #+BEGIN_SRC haskell
 -- given alg :: f a -> a
@@ -272,7 +268,7 @@ That is to say, the result of composing two separate catamorphisms is equivalent
 
 *** Was That Really So Hard?
 
-Thanks to Colin Barrett and Rob Rix for reading drafts of this essay, and thanks to Rob for pushing me to publish it. I'm sorry it took me so long.
+Thanks to Colin Barrett and Rob Rix for reading drafts of this essay, and thanks to Rob for pushing me to publish it.
 
 On a personal note, I am deeply grateful for all the comments I've received thus far, both complimentary and constructive.
 
@@ -282,9 +278,9 @@ On a personal note, I am deeply grateful for all the comments I've received thus
 
 [fn:2] In other words, =Expr= is an inductively-defined data type of kind =* -> *=.
 
-[fn:3] Packages like [[https://hackage.haskell.org/package/compdata][compdata]] provide Template Haskell magic to avoid the syntactic clutter associated with applying the =In= constructor everywhere: given our above definition of =Expr=, we could use the =smartConstructors= splice to generate =iLiteral=, =iIdent=, =iUnary=, etc. functions, each of which are straightforward compositions of the constructors of =Expr= with the =In= fixed-point operator.
+[fn:3] Packages like [[https://hackage.haskell.org/package/compdata][compdata]] provide Template Haskell magic to avoid the syntactic clutter associated with applying the =In= constructor everywhere: given our above definition of =Expr=, we could use the =smartConstructors= splice to generate =iLiteral=, =iIdent=, =iUnary=, etc. functions, each of which are straightforward compositions of the constructors of =Expr= with the =In= fixed-point operator. GHC's support for pattern synonyms can also eliminate applications of =In=.
 
-[fn:4] The purists in the audience are no doubt cringing at my use of "container" to describe the capabilities of a =Functor=. As the Typeclassopedia points out, =Functor=s are broader than just containing values: the best phrase for a =Functor f => f a= is "a value =a= within some computational context =f=. That doesn't exactly roll off the tongue, though, so I will be using"container" throughout. Sorry, purists. (But I already lost you with my hand-wavy treatment of least-fixed-points and codata last time.)
+[fn:4] The purists in the audience are no doubt cringing at my use of "container" to describe the capabilities of a =Functor=. As the Typeclassopedia points out, The =Functor= class is broader than just the concept of containing values: the best phrase for a =Functor f => f a= is "a value =a= within some computational context =f=. That doesn't exactly roll off the tongue, though, so I will be using "container" throughout. Sorry, purists. (But I already lost the purists with my hand-wavy treatment of least-fixed-points and codata last time.)
 
 [fn:5] Digression: Some of you may be wondering "if the catamorphism applied to lists is equivalent to =foldr=, what's the analogous construct for =foldl=?" This is somewhat of a trick question, as =foldl= can be expressed in terms of =foldr=, as [[http://okmij.org/ftp/Haskell/AlgorithmsH1.html#foldl][Oleg demonstrates]].
 
