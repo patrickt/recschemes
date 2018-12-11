@@ -2,16 +2,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Part1
-  ( Expr (..)
-  , Lit (..)
-  , Term (..)
-  , ExprF (..)
-  , Expr'
-  , flatten
-  , flatten'
-  , flatten''
-  ) where
+module Part1 where
 
 -- Check Part1Spec.hs for test cases that verify correctness.
 

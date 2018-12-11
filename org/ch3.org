@@ -86,8 +86,7 @@ So, let's implement paramorphisms. They'll look like the catamorphism we already
 #+BEGIN_SRC haskell :tangle ../src/Part3.hs
 para :: (Functor f) => RAlgebra f a -> Term f -> a
 para rAlg = out >>> fmap fanout >>> rAlg
-    where fanout :: Term f -> (Term f, a)
-          fanout t = (t, para rAlg t)
+    where fanout t = (t, para rAlg t)
 #+END_SRC
 
 And we're done! This is the classical definition of a paramorphism. With it, we can have our cake and eat it too: we can intelligently fold over a data structure without losing any information about the original representation of said structure.
@@ -103,8 +102,8 @@ fanout = id &&& para f
 Now we can express =para= with our new, beautiful =fanout= function:
 
 #+BEGIN_SRC haskell :tangle ../src/Part3.hs
-para' :: Functor f => RAlgebra' f a -> Term f -> a
-para' f = out >>> fmap (id &&& para f) >>> f
+para' :: Functor f => RAlgebra f a -> Term f -> a
+para' f = out >>> fmap (id &&& para' f) >>> f
 #+END_SRC
 
 The type signatures indicate that both these formulations of paramorphisms are equivalent: which one you choose is entirely up to which one you find more aesthetically pleasing.
@@ -113,7 +112,7 @@ The type signatures indicate that both these formulations of paramorphisms are e
 
 For extra credit: rather than using a function that takes a container of tuples (which can strike the eye as somewhat ugly), we can use one that takes two arguments, both the =Term f= and the container =f a=.
 
-#+BEGIN_SRC haskell
+#+BEGIN_SRC haskell :tangle ../src/Part3.hs
 type RAlgebra' f a = Term f -> f a -> a
 #+END_SRC
 
@@ -174,21 +173,21 @@ fastPretty :: RAlgebra' Expr Doc
 -- catamorphism in the previous installment. We just ignore
 -- the first `Term` argument because it doesn't have anything we need
 -- to look at.
-fastPretty _ (Literal i) = P.int i
-fastPretty _ (Ident s) = P.text
+fastPretty _ (Literal i) = Pretty.int i
+fastPretty _ (Ident s)   = Pretty.text s
 -- uninteresting cases omitted, blah blah blah
 
 -- Here's where it gets interesting. We're going to look
 -- at the first argument to determine  whether this is a
 -- `Call` node with the function name (an `Ident`) named `id`.
 -- If so, we'll just return the only argument provided.
-fastPretty (In (Call { name = "id", ..})
-           (Call {args = [theArg], ..}) = theArg
+fastPretty (In (Call { func = "id" }))
+           (Call {args = [theArg]}) = theArg
 
 -- Otherwise, we won't look at the first `Term` argument,
 -- and just glom the name and the parenthesized and
 -- comma-separated arguments together.
-fastPretty _ (Call f args) = f <> Pretty.parens ("," `Pretty.punctuate` args)
+fastPretty _ (Call f args) = f <> Pretty.parens (mconcat ("," `Pretty.punctuate` args))
 
 -- Straightforward ALGOL-style syntax for the remaining cases
 fastPretty _ (Index it idx)  = it <> Pretty.brackets idx
@@ -231,8 +230,8 @@ Wrong! We have to apply the dual to every construct in the definition of =RAlgeb
 
 Well, let's consider what a tuple is for. Given two arguments =big= and =pac=, a tuple bundles both of them together as =(big, pac)=. That makes sense, yes, but what can we do with both of these arguments that fits the notion of the "opposite" of holding both? Well, we can hold one or the other. And Haskell provides a concept to hold either a =big= or a =pac=: namely, =Either=. So, given that an =Algebra f a= holds a =Term f= and an =a=, we can express the dual of an R-algebra using an =Either=:
 
-#+BEGIN_SRC haskell
-type RCoalgebra = a -> f (Either (Term f) (f a))
+#+BEGIN_SRC haskell :tangle ../src/Part3.hs
+type RCoalgebra f a = a -> f (Either (Term f) a)
 #+END_SRC
 
 But what does this /mean/ when we're using apomorphisms in practice? Well, it allows us to /separate/ the flow of computation during our unfolds. If our R-coalgebra returns a =Left= value in which is contained a =Term=, the apomorphism will terminate and return the provided value. If it returns a =Right= value containing an =f a=, the unfold will continue onwards. This is cool! The ability to terminate during a corecursive iteration depending on the argument is a very useful property---and we need no imperative constructs such as =break= or (/shudder/) exceptions[fn:4].
@@ -256,14 +255,14 @@ fanin :: Either (Term f) a -> Term f
 As such, our function will handle this either by applying =id= in the case of a =Left= value (as getting a =Term= means that we can just return the =Term=) and recursing with =apo= in the case of a plain old =a= value, out of which we ultimately yield a =Term=, thanks to the ultimate signature of =apo=. And Haskell's built-in =either= function, which takes two functions and an Either and returns a result of applying the first to a =Left= case or the second to the =Right= case, allows us to express this =fanin= function beautifully. =id= does nothing the value contained inside a =Left=, returning just a =Term f=, and =apo f= continues the unfold operation when provided a =Right=:
 
 #+BEGIN_SRC haskell :tangle ../src/Part3.hs
-apo f :: Functor f => RCoalgebra f a -> a -> Term f
+apo :: Functor f => RCoalgebra f a -> a -> Term f
 apo f = In <<< fmap fanin <<< f where fanin = either id (apo f)
 #+END_SRC
 
 Similarly, we can rewrite =fanin= with =|||=, the dual of the =&&&= function above. (The operators here are a useful visual mnemonic: =&&&= uses both the functions it provides, where as =|||= uses one or the other).
 
 #+BEGIN_SRC haskell
-apo f :: Functor f => RCoalgebra f a -> a -> Term f
+apo :: Functor f => RCoalgebra f a -> a -> Term f
 apo f = In <<< fmap (id ||| apo f) <<< f
 #+END_SRC
 

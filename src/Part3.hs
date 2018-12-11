@@ -35,23 +35,14 @@ para rAlg = out >>> fmap fanout >>> rAlg
 para' :: Functor f => RAlgebra f a -> Term f -> a
 para' f = out >>> fmap (id &&& para' f) >>> f
 
-type RCoalgebra f a = a -> f (Either (Term f) a)
-
-apo :: Functor f => RCoalgebra f a -> a -> Term f
-apo f = In <<< fmap fanin <<< f where fanin = either id (apo f)
-
-apo' :: Functor f => RCoalgebra f a -> a -> Term f
-apo' f = In <<< fmap (id ||| apo f) <<< f
-
 type RAlgebra' f a = Term f -> f a -> a
 
+-- The & function is reverse function application,
+-- just like the $ operator, but with its arguments flipped.
 para'' :: Functor f => RAlgebra' f a -> Term f -> a
 para'' alg t = out t & fmap (para'' alg) & alg t
 
 type Algebra f a = f a -> a
-
-cata' :: Functor f => Algebra f a -> Term f -> a
-cata' f = para'' (const f)
 
 -- In retrospect, fastPretty is an ugly and contrived example.
 -- I hope you will forgive me.
@@ -76,20 +67,29 @@ fastPretty :: RAlgebra' Expr Doc
 -- catamorphism in the previous installment. We just ignore
 -- the first `Term` argument because it doesn't have anything we need
 -- to look at.
-fastPretty _ (Literal i) = P.int i
-fastPretty _ (Ident s)   = P.text s
+fastPretty _ (Literal i) = Pretty.int i
+fastPretty _ (Ident s)   = Pretty.text s
+-- uninteresting cases omitted, blah blah blah
+
 -- Here's where it gets interesting. We're going to look
 -- at the first argument to determine  whether this is a
 -- `Call` node with the function name (an `Ident`) named `id`.
 -- If so, we'll just return the only argument provided.
+fastPretty (In (Call { func = "id" }))
+           (Call {args = [theArg]}) = theArg
 
-fastPretty (In Call { func = "id" })
-           Call {args = [theArg]} = theArg
-fastPretty _ (Call f as)     = f <> P.parens (P.cat (P.punctuate ", " as))
+-- Otherwise, we won't look at the first `Term` argument,
+-- and just glom the name and the parenthesized and
+-- comma-separated arguments together.
+fastPretty _ (Call f args) = f <> Pretty.parens (mconcat ("," `Pretty.punctuate` args))
 
--- uninteresting cases below, blah blah blah
-fastPretty _ (Index it idx)  = it <> P.brackets idx
-fastPretty _ (Unary op it)   = P.text op <> it
-fastPretty _ (Binary l op r) = l <> P.text op <> r
-fastPretty _(Paren ex)      = P.parens ex
+-- Straightforward ALGOL-style syntax for the remaining cases
+fastPretty _ (Index it idx)  = it <> Pretty.brackets idx
+fastPretty _ (Unary op it)   = Pretty.text op <> it
+fastPretty _ (Binary l op r) = l <> Pretty.text op <> r
+fastPretty _ (Paren ex)      = Pretty.parens ex
 
+type RCoalgebra f a = a -> f (Either (Term f) a)
+
+apo :: Functor f => RCoalgebra f a -> a -> Term f
+apo f = In <<< fmap fanin <<< f where fanin = either id (apo f)
