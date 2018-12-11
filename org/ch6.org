@@ -1,168 +1,241 @@
 # -*- coding: utf-8 -*-
-#+TITLE: Recursion Schemes, Part 6: Comonads, Composition, and Generalit
+#+TITLE: Recursion Schemes, Part 6: Comonads, Composition, and Generality
 #+AUTHOR: Patrick Thomson
 #+EMAIL: patrick.william.thomson@gmail.com
 
-This article uses the =Base=-functor formulation of recursion schemes,
-as described in Ed Kmett's [[http://hackage.haskell.org/package/recursion-schemes-5.0.3/docs/Data-Functor-Foldable.html][recursion-schemes]] library. If you want an
-overview of why this formulation is useful, my [[https://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/][prior post]] on the matter
-may be helpful.
+/Previous installments: [[https://blog.sumtypeofway.com/an-introduction-to-recursion-schemes/][1]], [[https://blog.sumtypeofway.com/recursion-schemes-part-2/][2]], [[https://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/][3]], [[https://blog.sumtypeofway.com/recursion-schemes-part-iv-time-is-of-the-essence/][4]], [[https://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/][4½]], [[https://blog.sumtypeofway.com/recursion-schemes-part-v/][5]]./
 
-The essence of Haskell is composition. Why, then, can I not build new
-recursion schemes out of the existing ones? I have =para=, which lets
-me look at the original values alongside the fold's values in-flight,
-and =histo=, which provides a lookup table for previously calculated
-compositions, but what if I need both these properties to define a
-given fold? Or what if I want to create a new =hylo=-esque combinator
-out of the composition of a histomorphism and an apomorphism?
+Now that we've covered folds (~cata~, ~para~, and ~histo~), unfolds (~ana~, ~apo~, and ~futu~), and refold (~hylo~, ~hypo~, ~elgot~, and ~chrono~), I hope that you are convinced that recursion schemes are a useful tool to organize programs, beautify code, and clarify human intent. The above schemes provide sufficient bells and whistles so as to be an essential part of a functional programmer's toolbox. 
+
+Yet if we allow ourselves a greater degree of generality in the definition and construction of these recursion schemes, we unlock an underlying similarity between all these definitions. This underlying similarity was outlined by Tarmo Uustalu, Varmo Vene[fn:1], and Alberto Pardo in their 2001 paper /[[https://pdfs.semanticscholar.org/d9a0/b1804341c03bd3cae678c363e4ec317257b5.pdf][Recursion Schemes from Comonads]]/. As is often the case with papers describing recursion schemes, this work is dense and somewhat unapproachable. And indeed, I deemed /Comonad/'s observations elegant but inessential: it was my intention to discuss these results on the merits of their beauty rather than their applicability to real-world situations. However, a close perusal of Ed Kmett's [[http://hackage.haskell.org/package/recursion-schemes-5.0.3/docs/Data-Functor-Foldable.html][recursion-schemes]] library revealed an implementation[fn:2] of the core ideas behind /Recursion Schemes from Comonads/, and some experimentation with that implementation revealed to me how and why this paper is useful. 
+
+The essence of Haskell is composition. Functions, folds, lenses, algebras—composition is the melody with which all the disparate elements of Haskell harmonize. Why, then, can I not compose recursion schemes? For example, I have ~para~, which lets me look at the original values alongside the fold's values in-flight, and ~histo~, which provides a lookup table for previously calculated compositions, but what if I need both these properties to define a
+given fold? Or what if I want to create a new ~hylo~-esque combinator out of the composition of a histomorphism and an apomorphism?
+
+Thanks to Uustalu et al.'s ideas, our toolbox of recursion schemes becomes something more: rather than limiting us to the dozen or so predefined recursion schemes, we can unlock abstractions powerful enough to combine and amalgamate these schemes into others, at-will, building a solution tailor-made to the needs of the situation. This result is more than a beautiful implementation: it upgrades our toolbox into something more like a factory or foundry. I hope in this article to outline these ideas (though I will not be stepping through the paper itself), and to describe my process of discovery and understanding in the hope that others might follow along.
+
+This article uses the ~Base~-functor formulation of recursion schemes, as described in Ed Kmett's library, rather than the ad-hoc library we've designed thus far. If you want an overview of why this formulation is useful, my [[https://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/][prior post]] on the matter may be helpful.
 
 ** Lurking Similarities
 
+#+BEGIN_SRC haskell
+cata  :: (Base t a -> a) -> t -> a
+para  :: (Base t (t, a) -> a) -> t -> a
+histo :: (Base t (Cofree (Base t) a) -> a) -> t -> a
+#+END_SRC
 
+These are the type signatures of ~cata~, ~para~, and ~histo~. Each differs from the other in one place: the last parameter to the type ~Base t~, their ~Base~-algebras. We refer to this parameter as the 'carrier type', as it holds the information being 'carried' throughout each stage of the fold. For ~cata~, the carrier is a plain old ~a~ value, corresponding to previous results (if any) of the stages of the fold. For ~para~, it's ~(t, a)~, because at each stage of a paramorphism the original ~t~ value is visible alongside the in-flight ~a~. And for ~histo~, the carrier type is ~Cofree (Base t) a~, representing an adaptive, 'shapeshifting' cache structure around the original ~t~, storing all previously-computed ~a~ values.
+
+At first glance, these three values don't seem to share any essential similarity. But we can change that, by applying the ~Identity~ functor.
+
+#+BEGIN_SRC haskell
+newtype Identity a = Identity { runIdentity :: a }
+#+END_SRC
+
+A value of type ~Identity a~ just wraps a single ~a~. Though it doesn't appear to be particularly useful, since you can substitute an ~a~ for any ~Identity~ without having to construct or destructure an ~Identity~ value, its use lies in the set of interfaces to which it conforms. In this case, rather than using a bare ~a~ as the carrier type for ~cata~, we can use ~Identity~, because the original ~a~ is isomorphic to an ~Identity a~ value.
+
+#+BEGIN_SRC haskell
+cata  :: (Base t (Identity a) -> a) -> t -> a
+para  :: (Base t (t, a) -> a) -> t -> a
+histo :: (Base t (Cofree (Base t) a) -> a) -> t -> a
+#+END_SRC
+
+Now we have three types: ~Identity~ for ~cata~, the tuple ~(t,)~ for ~para~, and ~Cofree (Base t)~ for ~histo~. Each of these types represents a container or context that holds further ~a~ values, which we unify at each step of the fold into a single ~a~ value that is then passed to further iterations of the fold. 
+
+There is a deep similarity between these three types, though it may not appear so at first glance: they all implement the ~Comonad~ typeclass. 
+
+* Comonads for the Impatient
+
+The theory behind comonads is rich and deep, and I have neither room nor time to give a complete outline thereof. I recommend reading Bartosz Milewski's [[https://bartoszmilewski.com/2017/01/02/comonads/][excellent and rigorous overview]] of how to derive and define comonadic structures, as well as Gabriel Gonzales's [[http://www.haskellforall.com/2013/02/you-could-have-invented-comonads.html][application of comonadic abstractions]] to real-world problems. For our purposes, it suffices to define the ~Comonad~ typeclass with a few simple definitions.
+
+#+BEGIN_SRC haskell
+class Functor w => Comonad w where
+  extract :: w a -> a
+  duplicate :: w a -> w (w a)
+#+END_SRC
+
+This is an interface with two functions, to wit:
+
+- ~extract~, which, given some data type ~w~[fn:3] wrapping an ~a~ value, pulls out and returns that ~a~. This is dual to ~Monad~'s ~return~, which stuffs an ~a~ inside a monadic type.
+- ~duplicate~, which, given a ~w a~, wraps it in a further ~w~-container, returning a ~w (w a)~. This is dual to Monad's ~join~. 
+
+Let's implement ~Comonad~ for the data types we've discussed thus far.
+
+#+BEGIN_SRC haskell
+instance Comonad Identity where
+  extract (Identity a) = a
+  duplicate i          = Identity i
+#+END_SRC
+
+The instance for ~Identity~ is pretty straightforward: in ~extract~, we pattern-match on the ~Identity~ to reveal its contents, and to ~duplicate~, we just apply the ~Identity~ constructor again, yielding an ~Identity (Identity a)~.
+
+#+BEGIN_SRC haskell
+instance Comonad ((,) a) where
+  extract (_, b)   = b
+  duplicate (a, b) = (a, (a, b))
+#+END_SRC
+
+For tuples (~(,)~), ~extract~ targets the second element of the tuple. Correspondingly, ~duplicate~ replaces the second element of the provided tuple with a copy of itself. 
+
+#+BEGIN_SRC haskell
+instance Functor f => Comonad (Cofree f) where
+  extract (a :< _)   = a
+  duplicate (a :< f) = (a :< f) :< fmap duplicate f
+#+END_SRC
+
+Because ~Cofree~ can be seen as a recursive tuple type, the ~Comonad~ instance for ~Cofree~ is spiritually similar. Given some ~Cofree f a~ value, ~extract~ instance yields the ~a~ contained therein, while ~duplicate w~ creates a new ~Cofree~ datum with ~w~ as its annotation and the recursive ~f~ as its self-recursive type, mapping ~duplicate~ therein to ensure that all recursive elements are properly duplicated.
+
+* Comonads, Transform and Roll Out
+
+One of the primary idioms for constructing Haskell programs is /monad transformers/: the programmer, faced with some sort of program and its requirements, maps each of these requirements to some computational context---the ~State~ transformer for programs that need stateful values, the ~Reader~ transformer for those requring an immutable environment, or the ~LogicT~ transformer for backtracking-amenable logic programming. The programmer then builds their own ~Monad~ by composing each of these elements, for example:
+
+#+BEGIN_SRC haskell
+newtype MyProgram = MyProgram { run :: StateT MyState (ReaderT MyEnv (LogicT Identity)) a }
+  deriving (MonadState MyState, MonadReader MyEnv)
+#+END_SRC
+
+By defining this monad, this programmer has built a mini-DSL for describing the capabilities of our program. The ~MonadState~ and ~MonadReader~ interfaces provide her with built-in functionality for accessing the program's environment and modifying it's stateful parameter. We call these contexts---this ~StateT s~, this ~ReaderT e~, this ~LogicT~---/monad transformers/, because each allows us to transform some other monad. Think of it like some layered hard candy: each layer provides a different capability/flavor, down to the "core" monad/chewy center on which all previous layers are built. (This "core" monad are almost always either ~Identity~ or ~IO~, to represent pure and impure computations, respectively.)
+
+Because comonads are dual to monads, it stands to reason that there exist transformers for comonads. And indeed there does. Let's take a look: 
+
+#+BEGIN_SRC haskell
+data EnvT env w a = EnvT env (w a) 
+  deriving Functor
+#+END_SRC
+
+Given an environment type ~env~, an inner ~Comonad~ ~w~, and a wrapped type ~a~, the ~EnvT~ transformer builds a new comonad with all the capabilities of that ~w~, but with the added capability of consulting an environment of type ~env~. If this looks like the tuple type ~,~ to you, you're on the right track: you can see ~EnvT~ as a tuple type specifically constructed to hold comonads. To provide a measure of harmony between ~EnvT~ and ~(,)~, we can define a ~ComonadEnv~ typeclass:
+
+#+BEGIN_SRC haskell
+class Comonad w => ComonadEnv e w | w -> e where
+  ask :: w a -> e
+#+END_SRC
+
+This interface provides us with a generalized ~ask~ function capable of extracting an environment (~e~) from any comonad supporting the notion of environments. 
+
+#+BEGIN_SRC haskell
+instance ComonadEnv e (EnvT e w) where
+  ask (EnvT e _) =e
+
+#+END_SRC
+
+This instance for ~EnvT~ is pretty trivial: we just return the ~env~ parameter. (We can't use ~extract~, since that would target the ~a~, rather than the ~env~, of some ~EnvT env w a~.)
+
+#+BEGIN_SRC haskell
+instance ComonadEnv e (, e) where
+  ask (e, _) = e
+#+END_SRC
+
+Similarly, we can define ~ask~ over tuples, where ~ask~ retrieves the first element of the tuple. 
+
+Though this may seem like a lot of typing for little benefit, the ~ComonadEnv~ typeclass provides us with a generalized interface to the environment parameter associated with any environmental ~Comonad~. Thus, when we build new ~Comonad~ types out of these comonad transformers, we can always use ~ask~ to extract the environment, saving us from having to memorize an extraction function for each comonad.
+
+#+BEGIN_SRC haskell
+class Comonad w => ComonadCofree f w | w -> f where
+  unwrap :: w a -> f (w a)
+
+instance ComonadCofree f (Cofree f) where
+  unwrap (_ :< r) = r
+
+#+END_SRC
+
+Similarly, the ~ComonadCofree~ interface provides an abstraction over the ~Cofree~ comonad: the ~unwrap~ function, given a ~Cofree f a~ extracts the self-similar recursive entity, of type ~f (Cofree f a)~. If we build a new comonad with ~Cofree~ at its core, we can implement the ~ComonadCofree~ interface and use the same ~unwrap~ function for both ~Cofree~ and our new comonad. Indeed, let's do that.
 
 ** A Comonad of One's Own
 
-Given the generalized catamorphism =gcata=, we know that the
-histomorphism emerges from the =Cofree= comonad and the paramorphism
-from the =Env= comonad. It follows that to build a morphism that
-combines the capabilities of =histo= and =para=, we'll need a
-comonad that combines =Cofree= and =Env=. Let's do that, and let's
-call it =Ledger=, as the purpose of this data structure is to record
-both inputs and outputs, much as an accountant's ledger records
-income and expenditures.
+Let's define a comonad that combines the ~Env~ comonad and the ~Cofree~ comonad: this resulting entity will have both access to an environment and to a contained self-similar recursive entity.
 
-#+NAME: ledger-def
 #+BEGIN_SRC haskell
-newtype Ledger t f a = Ledger { runLedger :: EnvT t (Cofree f) a } deriving Functor
+newtype Ledger t f a ~ Ledger { runLedger :: EnvT t (Cofree f) a } deriving Functor
 #+END_SRC
 
-The core of this definition is =Cofree f=, which the histomorphism uses
-to provide a cache of previously-computed values. We then wrap that core
-inside the =EnvT t= comonad transformer, which provides us access to a
-historical =t= value. (If this reminds you of building monad transformers
-with the =mtl= library, you've got it---except here we're building
-comonads rather than monads.)
-
-Due to a limitation of GHC, we can't automatically derive an
-instance of =Comonad= for =Ledger=, but it's not too painful to do so:
+We'll call it ~Ledger~, as this data structure is capable of recording past computations (~Cofree f~), along with the environment provided (~EnvT t~) to each computation, much as an accountant's ledger can record past transactions and the information associated with each.
 
 #+BEGIN_SRC haskell
-instance Functor f => Comonad (Ledger t f)
-  extract = extract . runLedger
+instance Functor f ~> Comonad (Ledger t f)
+  extract = runLedger >>> extract -- delegate to EnvT's extract
   duplicate l@(Ledger e) = Ledger (l <$ e)
 #+END_SRC
 
-For the purposes of ergonomics, we'll use interfaces provided by the
-=comonad= package to provide fluent access to the general capabilities
-of the =Ledger= comonad. Firstly, we'll define a =ComonadEnv= instance,
-which lets us extract the stored =t= val from any =Ledger t f a=.
-(I've annotated the =ask= method with its signature, thanks to GHC's
-=InstanceSigs= extension, for the sake of clarity.)
+Due to a limitation of GHC, we can't automatically derive an instance of ~Comonad~ for ~Ledger~, but it's not too painful to do so. Similarly, we can write instances for ~ComonadEnv~ and ~ComonadCofree~. (I've annotated these instances with their type signatures, thanks to GHC's ~InstanceSigs~ extension, for the sake of clarity.)
 
 #+BEGIN_SRC haskell
-instance Functor f => ComonadEnv t (Ledger t f) where
+instance Functor f ~> ComonadEnv t (Ledger t f) where
   ask :: Ledger t f a -> t
-  ask = runLedger >>> ask -- just delegate to EnvT's ask
-#+END_SRC
+  ask ~ runLedger >>> ask -- just delegate to EnvT's ask
 
-This lets us =ask=, at each stage of a =Ledger=-algebra, for the
-original value upon which this stage is operating. Similarly, a
-=ComonadCofree= instance lets us, given a =Ledger t f a=, extract one
-level of the =f= functor with the =unwrap= method. Calling =unwrap= gets
-us one level of =f=-history; calling =unwrap= on the values contained in
-that =f= gets us two levels, etc.
-
-#+BEGIN_SRC haskell
-instance Functor f => ComonadCofree f (Ledger t f) where
+instance Functor f ~> ComonadCofree f (Ledger t f) where
   unwrap :: Ledger t f a -> f (Ledger t f a)
-  unwrap = runLedger >>> unwrap >>> fmap Ledger -- delegate to EnvT+Cofree's unwrap
+  unwrap ~ runLedger >>> unwrap >>> fmap Ledger -- delegate to EnvT+Cofree's unwrap
 #+END_SRC
 
-Now that we have =Ledger= and its =Comonad=, =ComonadEnv=, and
-=ComonadCofree= instances, we have sufficient vocabulary to be fluent
-in the definition of =Ledger=-assisted recursion schemes. But before
-we can execute such a scheme, we need a distributive law.
+Now that we have this comonad, we can pose a question to ourselves: what kind of recursion scheme would a ~Ledger t f~ give rise to? Since the core of this comonad is ~Cofree~, it would presumably be like ~histo~---that is, capable of consulting a record of previously-computed ~f~-results---with behavior similar to that of ~para~, providing access to the original, unfolded ~t~-values. We could refer to this scheme as a histoparamorphism, or perhaps a parahistomorphism.
+
+Our first instinct might be to sit down and manually derive a definition of this recursion scheme, like we did for ~cata~, ~para~, and ~histo~. /But we don't have to!/ The contribution of /Recursion Schemes from Comonads/ is that if we derive a function, called a /distributive law/, that describes how operations percolate and transform a given comonad, we never have to write our own ~cata~-analogue again: we can lean on the /generalized catamorphism/, which, given a comonad and distributive law, yields a recursion scheme corresponding to the capabilities of that comonad! This provides us a plug-and-play interface to recursion schemes: no longer are we limited to these three built-in combinators; instead, we can build our own, out of compositional, reusable parts, without the repetitive and error-prone process of deriving a recursion scheme for each and every task.
+
+But to do this, and to understand how it works, we'll need to look at how these distributive laws and this generalized catamorphism are implemented.
 
 ** The Means of Distribution
 
-I am not a mathematician. Nor am I a type theorist, nor a category
-theorist---I am a software engineer. And in the grand tradition of
-software engineers everywhere, let's begin the process of writing a
-distributive law for =Ledger= by attempting to copy what other,
-smarter people have laid down before. Specifically, let's start with
-the distributive laws for =histo=, to wit:
+I am not a mathematician. Nor am I a type theorist, nor a category theorist---I am a software engineer. And in the grand tradition of
+software engineers everywhere, let's begin the process of writing a distributive law for ~Ledger~ by attempting to copy what other, smarter people have laid down before. Specifically, let's start with the distributive laws for ~histo~, to wit:
 
 #+BEGIN_SRC haskell
-histo     :: Recursive t => (Base t (Cofree (Base t) a) -> a) -> t -> a
-distHisto :: Functor f   => f (Cofree f a) -> Cofree f (f a)
+histo     :: Recursive t ~> (Base t (Cofree (Base t) a) -> a) -> t -> a
+distHisto :: Functor f   ~> f (Cofree f a) -> Cofree f (f a)
 #+END_SRC
 
-"Okay," I originally thought, flush with optimism and overconfidence,
-"this should be straightforward. My distributive law should take an
-=f= containing =Ledger t f a= values, and return a =Ledger t f=
-containing =f a= values."
+"Okay," I originally thought, flush with optimism and overconfidence, "this should be straightforward. My distributive law should take an ~f~ containing ~Ledger t f a~ values, and return a ~Ledger t f~ containing ~f a~ values."
 
 #+BEGIN_SRC haskell
-badDistLedger :: Functor f => f (Ledger t f a) -> Ledger t f (f a)
+badDistLedger :: Functor f ~> f (Ledger t f a) -> Ledger t f (f a)
 #+END_SRC
 
-As you may have inferred from the tone of my narration, I was wrong.
-No amount of pleading with GHC would suffice, because I needed to
-distribute not just over the =Cofree f= at the core of the =Ledger=,
-but also over the =EnvT= wrapped around the =Cofree=. "Fine, then,"
-I said, flush again with optimism, "I'll compose =distHisto= with
-=distPara=, which makes sense given that =Ledger= is the composition
-of =Cofree= inside an =EnvT=." But =distPara= didn't look like what
-I was looking for either. Sure, it adequately conveyed, with a
-=(t, a)= pair, the notion of in-flight =a= values paired with their
-original =t= values, but nowhere did it mention =Env= or =EnvT=.
+As you may have inferred from the tone of my narration, I was wrong. No amount of pleading with GHC would suffice, because I needed to
+distribute not just over the ~Cofree f~ at the core of the ~Ledger~, but also over the ~EnvT~ wrapped around the ~Cofree~. "Fine, then,"
+I said, flush again with optimism, "I'll compose ~distHisto~ with ~distPara~, which makes sense given that ~Ledger~ is the composition
+of ~Cofree~ inside an ~EnvT~." But ~distPara~ didn't look like what I was looking for either. Sure, it adequately conveyed, with a
+~(t, a)~ pair, the notion of in-flight ~a~ values paired with their original ~t~ values, but nowhere did it mention ~Env~ or ~EnvT~.
 
 #+BEGIN_SRC haskell
 para     :: (Base t (t, a) -> a) -> t -> a
-distPara :: Corecursive t => Base t (t, a) -> (t, Base t a)
+distPara :: Corecursive t ~> Base t (t, a) -> (t, Base t a)
 #+END_SRC
 
-Yet beneath =distPara= there lurked an even less-comprehensible function,
-=distParaT=. No docstrings were present regarding its purpose or the
-function of its arguments, but it had something =distPara= didn't: a
-mention of =EnvT=.
+Yet beneath ~distPara~ there lurked an even less-comprehensible function, ~distParaT~. No docstrings were present regarding its purpose or the
+function of its arguments, but it had something ~distPara~ didn't: a mention of ~EnvT~.
 
 #+BEGIN_SRC haskell
 distParaT :: (Corecursive t, Comonad w)
-          => (forall b. Base t (w b) -> w (Base t b))
+          ~> (forall b. Base t (w b) -> w (Base t b))
           -> Base t (EnvT t w a)
           -> EnvT t w (Base t a)
 #+END_SRC
 
-Unlike =distPara= or =distHisto=, =distParaT= takes two arguments. The
-first one looked remarkably like a distributive law itself. On a lark,
-I tried asking GHCi what happens if I pass =distHisto= as the first
-argument of =distParaT=:
+I was on to something here. I knew that ~EnvT~ represented the comonadic analogue of ~,~ the tuple type. But Unlike ~distPara~ or ~distHisto~, ~distParaT~ takes two arguments. The first one looked remarkably like a distributive law itself. On a lark, I tried asking GHCi what happens if I pass ~distHisto~ as the first argument of ~distParaT~:
 
 #+BEGIN_SRC haskell
 λ> :t distParaT distHisto
 
 distParaT distHisto
   :: Corecursive t
-  => Base t (EnvT t (Cofree (Base t)) a)
+  ~> Base t (EnvT t (Cofree (Base t)) a)
   -> EnvT t (Cofree (Base t)) (Base t a)
 #+END_SRC haskell
 
-This, I realized, was much closer to what I wanted. That =EnvT t
-(Cofree (Base t))= was precisely the shape of my =Ledger= newtype
-applied to a =Base t=. Indeed, if we go through this type signature and
-replace every =EnvT t (Cofree f) a= with a =Ledger t f a=, we yield a
-type signature corresponding to the distributive law for =Ledger=!
+This, I realized, was much closer to what I wanted. That ~EnvT t (Cofree (Base t))~ was precisely the shape of my ~Ledger~ newtype applied to a ~Base t~. Indeed, if we go through this type signature and replace every ~EnvT t (Cofree f) a~ with a ~Ledger t f a~, we yield a type signature corresponding to the distributive law for ~Ledger~!
 
 #+BEGIN_SRC haskell
-distLedger :: Corecursive t => Base t (Ledger t (Base t) a) -> Ledger t (Base t) (Base t a)
+distLedger :: Corecursive t ~> Base t (Ledger t (Base t) a) -> Ledger t (Base t) (Base t a)
 #+END_SRC
 
-Following this type, we can implement =distLedger= atop the core that is
-=distParaT distHisto=. All we have to do is unwrap the =Ledger= values inside
-the =Base t= functor, apply the distributive law yielded from =distParaT=,
-then repack the result of that distribution in a =Ledger=.
+Following this type, we can implement ~distLedger~ atop the core that is ~distParaT distHisto~. To do this, we unwrap the ~Ledger~ values inside the ~Base t~ functor, apply the distributive law yielded from ~distParaT~, then repack the result of that distribution in a ~Ledger~.
 
 #+BEGIN_SRC haskell
-distLedger = fmap runLedger >>> distParaT distHisto >>> Ledger
+distLedger ~ fmap runLedger >>> distParaT distHisto >>> Ledger
 #+END_SRC
+
+[fn:2] an undocumented implementation, but an implementation nonetheless
+
+[fn:1] You might remember Uustalu and Vene from /Primitive(Co)Recursion and Course-of-Value (Co)Iteration, Categorically/, which introduced the histomorphism and futumorphism (as covered in the third part of this series).
+
+[fn:3] Most documentation uses ~w~ to represent types that implement ~Comonad~, probably because ~c~ is often used in bindings of values, and because ~w~ looks like a flipped---that is to say, arrow-reversed---version of ~m~, which is used for ~Monad~ type variables.
