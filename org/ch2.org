@@ -168,7 +168,7 @@ The use of the term "algebra" to in this context may seen a bit discomfiting. Mo
 
 The etymology of "algebra" can shed some light on this---it stems from the Arabic root جبر, /jabr/, which means "restoration" or "reunion". An algebra as a function that /reunites/ a container of =a='s---an =f a=---into a single accumulated =a= value.
 
-*** Catamorphisms
+** Catamorphisms
 
 So, now that we have a grasp on what an algebra is and why we're calling it that, let's rewrite the type signature of =mystery= using the =Algebra= type synonym.
 
@@ -234,7 +234,7 @@ One final detail: we can represent our =bottomUp= function in terms of =cata=. I
 bottomUp f = cata (In >>> f)
 #+END_SRC
 
-*** Laws
+** Laws
 
 This formulation of recursive traversals sure is elegant---but elegance isn't enough. The real reason to use catamorphisms is that every catamorphism obeys a set of laws.[fn:6] The simplest law is the identity law:
 
@@ -266,13 +266,31 @@ cata (f >>> In) >>> cata g
 
 That is to say, the result of composing two separate catamorphisms is equivalent to a single catamorphism using the combination of the contained algebras. This is amazing, almost magically so: the composition law allows us to turn two separate calls to =cata= into one.
 
-*** Was That Really So Hard?
+** Was That Really So Hard?
 
 Thanks to Colin Barrett and Rob Rix for reading drafts of this essay, and thanks to Rob for pushing me to publish it.
 
 On a personal note, I am deeply grateful for all the comments I've received thus far, both complimentary and constructive.
 
 /In part 3, we explore the limits of catamorphisms, and address these limits with [[http://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/][paramorphisms and apomorphisms]]./
+
+#+BEGIN_SRC haskell :exports none :tangle ../test/Part2Spec.hs
+module Part2Spec (spec) where
+
+import           Part2
+import           Test.Hspec
+
+spec :: Spec
+spec = do
+  describe "countNodes" $
+    it "should yield 4 on add(10, 10)" $
+      cata countNodes call `shouldBe` 4
+
+  describe "prettyPrint" $
+    it "should yield add(10, 10)" $
+      show (cata prettyPrint call) `shouldBe` "add(10, 10)"
+
+#+END_SRC
 
 [fn:1] By "meat of the paper", I mean "the first two pages". Have patience.
 
