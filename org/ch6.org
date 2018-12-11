@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#+TITLE: Recursion Schemes, Part 6: Comonads, Composition, and Vocabulary
+#+TITLE: Recursion Schemes, Part 6: Comonads, Composition, and Generalit
 #+AUTHOR: Patrick Thomson
 #+EMAIL: patrick.william.thomson@gmail.com
 
