@@ -18,11 +18,15 @@ library
                        Part3
                        Part4
                        Part4Point5
+                       Part6
   build-depends:       base >= 4.7 && < 5
                      , boxes
+                     , comonad
                      , containers
+                     , free
                      , pretty
                      , random
+                     , recursion-schemes
   default-language:    Haskell2010
 --  ghc-options:         -Wall
 
