@@ -34,7 +34,7 @@ para  :: (Base t (t, a) -> a) -> t -> a
 histo :: (Base t (Cofree (Base t) a) -> a) -> t -> a
 #+END_SRC
 
-These are the type signatures of ~cata~, ~para~, and ~histo~. Each differs from the other in one place: the last parameter to the type ~Base t~, their ~Base~-algebras. We refer to this parameter as the /carrier type/, as it holds the information being 'carried' throughout each stage of the fold. For ~cata~, the carrier is a plain old ~a~ value, corresponding to previous results (if any) of the stages of the fold. For ~para~, it's ~(t, a)~, because at each stage of a paramorphism the original ~t~ value is visible alongside the in-flight ~a~. And for ~histo~, the carrier type is ~Cofree (Base t) a~, representing an adaptive, 'shapeshifting' cache structure around the original ~t~, storing all previously-computed ~a~ values.
+These are the type signatures of ~cata~, ~para~, and ~histo~. Each differs from the other in one place: the last parameter to the type ~Base t~, their ~Base~-algebras. For ~cata~, the carrier is a plain old ~a~ value, corresponding to previous results (if any) of the stages of the fold. For ~para~, it's ~(t, a)~, because at each stage of a paramorphism the original ~t~ value is visible alongside the in-flight ~a~. And for ~histo~, the carrier type is ~Cofree (Base t) a~, representing an adaptive, 'shapeshifting' cache structure around the original ~t~, storing all previously-computed ~a~ values.
 
 At first glance, these three values don't seem to share any essential similarity. But we can change that, by applying the ~Identity~ functor.
 

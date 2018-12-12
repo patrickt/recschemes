@@ -5,7 +5,6 @@ import Control.Comonad
 import Control.Comonad.Cofree
 import Control.Comonad.Env
 import Control.Arrow
-import Data.Coerce
 import Data.Functor.Foldable
 
 newtype Ledger t f a = Ledger { getLedger :: EnvT t (Cofree f) a } deriving Functor
@@ -36,4 +35,4 @@ distLedger' f = Ledger (EnvT environ cofree) where
   distInnards (Ledger (EnvT _ (x :< y))) = distHisto y
 
 distLedger'' :: Corecursive t => Base t (Ledger t (Base t) a) -> Ledger t (Base t) (Base t a)
-distLedger'' = coerce (distParaT distHisto)
+distLedger'' = fmap getLedger >>> distParaT distHisto >>> Ledger
