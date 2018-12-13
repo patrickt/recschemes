@@ -1,7 +1,7 @@
 name:                recschemes
 version:             0.1.0.0
 homepage:            https://github.com/patrickt/recschemes#readme
-license:             OtherLicense
+license:             AllRightsReserved
 license-file:        LICENSE
 author:              Patrick Thomson
 maintainer:          patrick.william.thomson@gmail.com
@@ -60,4 +60,4 @@ test-suite recschemes-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/recschemes
+  location: https://github.com/patrickt/recschemes
