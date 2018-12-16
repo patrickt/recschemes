@@ -98,7 +98,7 @@ flatten (Binary l op r) = Binary (flatten l) op (flatten r)
 
 This isn't good code. It's clumsy. Four out of this function's six lines are dedicated to the simple yet tedious task of ensuring that =flatten= propery recurses into its argument's subexpressions---not only is this boring to write, but any future changes (such as added constructors or fields) to =Expr= will force us to rewrite it. (I'll refer to recursion written in this style as /explicit recursion/, in contrast with the implicit recursion provided by recursion schemes.) In addition, it's extremely easy to make mistakes in this definition---the syntatic noise that the primitive recursion introduces renders it hard to spot a missing recursive invocation of =flatten=, yet even one such omission introduces a critical bug.
 
-We can, however, bring some sanity to this madness by writing a function =apply= that, given a function =f= operating on =Expr=s, applies =f= to each subexpression of a given =Expr=:
+We can, however, bring some sanity to this madness by writing a function =apply= that, given a function =f= operating on =Expr= values, applies =f= to each subexpression of a given =Expr=:
 
 #+BEGIN_SRC haskell :tangle ../src/Part1.hs
 applyExpr :: (Expr -> Expr) -> Expr -> Expr
@@ -312,6 +312,8 @@ The fact that we can express the duality between top-down and bottom-up traversa
 Top-down and bottom-up traversals are the simplest of recursion schemes---we've barely touched the surface of what /Bananas, Lenses, Envelopes, and Barbed Wire/ has to offer us. In the next installment of this series I'll explore the myriad varieties of recursion schemes---apomorphisms, paramorphisms, and histomorphisms, just to name a few---and how generalizing each recursion scheme allows us to derive new, more-general schemes.
 
 I'd like to thank everyone who read a draft of this entry, especially Nate Soares and Manuel Chakravarty. I'd also like to thank Colin Barrett, who helped me puzzle all this out over late-night Skype sessions. If you have any comments or questions, please drop me a line on [[https://twitter.com/importantshock][Twitter]].
+
+/In the next installment of this series, we go on to discuss [[https://blog.sumtypeofway.com/recursion-schemes-part-2/][catamorphisms and anamorphisms]]./
 
 #+BEGIN_SRC haskell :tangle ../test/Part1Spec.hs :exports none
 {-# LANGUAGE AllowAmbiguousTypes  #-}

@@ -302,7 +302,7 @@ Bearing this implementation detail in mind, this formulation of ~cata~ is quite 
 
 I owe thanks to Edward Kmett, whose =recursion-schemes= library is magnificent and inspiring, and to Austin Seipp, who checked my statements about GHC code generation for accuracy.
 
-I'm hoping to be done with the next proper installment of this series within the next couple of weeks. (This one covers hylomorphisms and chronomorphisms.) Until then, thank you for reading.
+/In part V, we discuss [[https://blog.sumtypeofway.com/recursion-schemes-part-v/][refolds—hylomorphisms and Elgot algebras]]./
 
 [fn:1] If you're not familiar with the notion of a 'kind', you can think (loosely) about the kind of a data type ~t~ as a measure of how many arguments it takes. Our ~Expr~ type takes no arguments, so its kind is "star": ~*~. A data type that takes one argument has kind 'star to star', ~* -> *~. A data type that takes three arguments, like ~Either~, has kind ~* -> * -> *~. The high-level description of a kind is 'the type of a type', but you can think about them as merely providing information as to the parameters taken, if any, by a data type. (The ~:k~) directive in GHCi provides information on the kind of any type or typeclass you provide.
 
