@@ -58,7 +58,7 @@ At this point, we can represent expressions with no subexpressions with the type
 newtype Term f = In { out :: f (Term f) }
 #+END_SRC
 
-Now we represent arbitrarily-nestable =Expr=s with values of type =Term Expr=, obtained by applying the =In= constructor with a constructor from =Expr=[fn:3]:
+Now we represent arbitrarily-nestable =Expr= values with values of type =Term Expr=, obtained by applying the =In= constructor with a constructor from =Expr=[fn:3]:
 
 #+BEGIN_SRC haskell :tangle ../src/Part2.hs
 ten, add, call :: Term Expr

@@ -495,13 +495,13 @@ Here's our full ~sow~ function, rewritten slightly to use one ~case~ statement:
 sow seed =
   let (action, left, right) = grow seed
   in case (action, height seed) of
-    (_, 0)       -> Root (Automatic left)
+    (_, 0)       -> Root (Continue left)
     (_, 10)      -> Bloom
     (Flower, _)  -> Bloom
-    (Upwards, _) -> Stalk (Automatic right)
-    (Branch, _)  -> Fork (Manual (Stalk (Automatic left)))
+    (Upwards, _) -> Stalk (Continue right)
+    (Branch, _)  -> Fork (Manual (Stalk (Continue left)))
                          (Manual Bloom)
-                         (Manual (Stalk (Automatic right)))
+                         (Manual (Stalk (Continue right)))
 #+END_SRC
 
 This is pretty remarkable. We've encoded a complex set of rules, one that involves both nondeterminism and strict layout requirements, into one CV-coalgebra, and it took just eleven lines of code. No mutable state is involved, no manual accumulation is required---the entire representation of this automaton can be reduced to one pure function.
@@ -517,6 +517,7 @@ main = do
 #+END_SRC
 
 Using a rendering function (which I have omitted for brevity's sake, though you can be assured that it is implemented using ~cata~ rather than explicit recursion), we can draw a picture of the plant we've just generated, with little flowers.
+
 
 #+BEGIN_EXAMPLE
     ⚘
@@ -546,10 +547,10 @@ One final detail: just as we can use an apomorphism to express an anamorphism, w
 
 #+BEGIN_SRC haskell
 ana :: (Functor f) => Coalgebra f a -> a -> Term f
-ana f = futu (fmap Automatic <<< f)
+ana f = futu (fmap Continue <<< f)
 
 apo :: Functor f => RCoalgebra f a -> a -> Term f
-apo f = futu (fmap (either termToCoattr Automatic) <<< f)
+apo f = futu (fmap (either termToCoattr Continue) <<< f)
   where termToCoattr = Manual <<< fmap termToCoattr <<< out
 #+END_SRC
 

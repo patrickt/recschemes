@@ -1,0 +1,3 @@
+#!/bin/bash
+
+pandoc --from=org+smart --wrap=none --to=markdown+footnotes-smart-fenced_code_attributes $1

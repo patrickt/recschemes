@@ -140,8 +140,6 @@ data ExprF a
 
 This new definition of an expression differs from its predecessor in that we've added a type variable =a= and replaced all recursive occurrences of the =Expr= type with it. (By convention, we append the suffix =-F= to the type name and constructors of expressions in this formulation; the reason for this will become clear in a moment. Put another way, we have /parameterized/ this type in terms of its subexpressions. As such, we have to change our definition of =applyExpr=: the function we apply to each subexpression can no longer be of type =Expr -> Expr=, but must become =a -> a=: indeed, we can make it =a -> b=, letting the function change the type of an =Expr='s subexpressions if necessary.
 
-This new definition of =Expr= is identical to our previous one, except here we've added a type variable =a= and replaced all recursive occurrences of the =Expr= type with it. Put another way, we have /parameterized/ this type in terms of its subexpressions. As such, we have to change our definition of =applyExpr=: the function we apply to each subexpression can no longer be of type =Expr -> Expr=, but must become =a -> a=: indeed, we can make it =a -> b=, letting the function change the type of an =Expr='s subexpressions if necessary.
-
 #+BEGIN_SRC haskell
 apply :: (a -> b) -> ExprF a -> ExprF b
 #+END_SRC

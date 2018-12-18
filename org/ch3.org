@@ -273,7 +273,7 @@ etymologies).
 
 I am indebted to Rob Rix, Colin Barrett, and Manuel Chakravarty for their input and suggestions regarding this post.
 
-/In part four, we explore [[https://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/][histomorphisms and futumorphisms]]./
+/In part four, we explore [[https://blog.sumtypeofway.com/recursion-schemes-part-iv-time-is-of-the-essence/][histomorphisms and futumorphisms]]./
 
 [fn:1] Modern English tends to use "para" as a prefix meaning "pseudo"
        or "abnormal" (as in "parapsychology" or "paresthesia")---this is
