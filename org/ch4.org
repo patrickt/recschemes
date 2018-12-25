@@ -6,7 +6,7 @@ Though we've only just begun our dive into /Bananas, Lenses, Envelopes, and Barb
   [We] argue that even these schemes are helpful for a declaratively thinking programmer and program reasoner who loves languages of programming and program reasoning where programs and proofs of properties of programs are easy to write and read.
 #+END_QUOTE
 
-That sure sounds like us. Let's get going. This article is literate Haskell; you can find the source code [[https://github.com/patrickt/recschemes/blob/master/src/Part4.lhs][here]].
+That sure sounds like us. Let's get going. This article is literate Haskell; you can find the source code [[https://github.com/patrickt/recschemes/blob/master/src/Part4.l][here]].
 
 #+BEGIN_SRC haskell :tangle ../src/Part4.hs :exports none
 {-# LANGUAGE StandaloneDeriving   #-}

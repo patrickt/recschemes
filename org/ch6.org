@@ -292,15 +292,15 @@ histo = gcata distHisto
 
 So what happens if we plug in our ~distLedger~ function into ~gcata~?
 
-#+BEGIN_SRC haskell
+#+BEGIN_SRC haskell :results output :exports both
 λ> :t gcata distLedger
 #+END_SRC
 
 #+RESULTS:
-: gcata distLedger
+: gcata distCata 
 :    :: (Recursive t, Comonad (Base t)) => (Base t (Ledger t (Base t) a) -> a) -> t -> a
 
-That's almost correct---we have a ~Ledger~-based W-algebra as the first parameter---but a look at the type constraints shows that this definition is slightly wrong. Restricting this function to types that provide an instance of ~Comonad~ for their ~Base~ functor is much too restrictive, given that most ~Base~ functors don't admit a definition of ~Comonad~. Our error lies in the fact that our ~distLedger~ function used comonadic ~extract~ to extract the environment from a ~f (Ledger env f a)~. However, if we're dealing with ~Base~ functors, we can use the ~Corecursive~ typeclass, which provides an ~embed~ that serves, in this case, the purposes of ~extract~, without any ~Comonad~ constraint. We'll use the ~TypeFamiles~ extension to specify that ~f~ is, in this case, equivalent to ~Base t~, to keep clutter out of the right-hand-side of the definition
+That's almost correct---we have a ~Ledger~-based W-algebra as the first parameter---but a look at the type constraints shows that this definition is slightly wrong. Restricting this function to types that provide an instance of ~Comonad~ for their ~Base~ functor is much too restrictive, given that most ~Base~ functors don't admit a definition of ~Comonad~. Our error lies in the fact that our ~distLedger~ function used comonadic ~extract~ to extract the environment from a ~f (Ledger env f a)~. However, if we're dealing with ~Base~ functors, we can use the ~Corecursive~ typeclass, which provides an ~embed~ that serves, in this case, the purposes of ~extract~, without any ~Comonad~ constraint. We'll use the ~TypeFamilies~ extension to specify that ~f~ is, in this case, equivalent to ~Base t~, to keep clutter out of the right-hand-side of the definition
 
 #+BEGIN_SRC haskell :tangle ../src/Part6.hs
 distLedger' :: (Corecursive t, f ~ Base t) => f (Ledger t f a) -> Ledger t f (f a)
@@ -364,14 +364,16 @@ We've established that our ~Ledger~ comonad is the composition of the ~Env~ and 
 :     => Base t (EnvT t (Cofree (Base t)) a) 
 :     -> EnvT t (Cofree (Base t)) (Base t a)
 
-This yields us something almost identical to ~Ledger~---remember that ~Ledger t f a~ wraps a ~EnvT t (Cofree f) a~. Now we can, with some invocations of the ~Ledger~ constructor and ~getLedger~ destructor, write ~distLedger~ without a single pattern-match:
+This yields us something almost identical to ~Ledger~---remember that ~Ledger t f a~ wraps a ~EnvT t (Cofree f) a~. Now we can, with some invocations of the ~Ledger~ constructor and ~getLedger~ destructor, write ~distLedger~ without a single pattern-match[fn:8]:
 
 #+BEGIN_SRC haskell :tangle ../src/Part6.hs
 distLedger'' :: Corecursive t => Base t (Ledger t (Base t) a) -> Ledger t (Base t) (Base t a)
 distLedger'' = fmap getLedger >>> distParaT distHisto >>> Ledger
 #+END_SRC
 
-The upshot of all of this is that, thanks to the generality of ~gcata~, you can combine arbitrary capabilities, from any type of fold, into a bespoke fold that exactly fits the problem at hand. Furthermore, you never need to write a distributive law by hand: the distributive-law-transformers like ~distParaT~ and its siblings ~distGHisto~[fn:6] and ~distZygoT~ make it straightforward to derive, given a comonad built of comonad transformers, a well-typed distributive law. Every recursion scheme is, under the hood, wrought of the same material. There is an order to these functions, almost symphonic in nature, that, in my view, elevates recursion schemes from 'hey, this is cool' to something deep and fundamental about the nature of recursive computations. Just as the integral and differential calculus allowed Newton and Leibniz to unify the treatment of curves, motion, and infintesimals, /Recursion Schemes from Comonads/ allows us to unify folds, dynamic programming, and mutually-recursive computations (~zygo~). There is a beauty to this treatment of recursion, almost symphonic in its harmony, one that I find myself struggling to express in words.
+The upshot of all of this is that, thanks to the generality of ~gcata~, you can combine arbitrary capabilities, from any type of fold, into a bespoke fold that exactly fits the problem at hand. Furthermore, you never need to write a distributive law by hand: the distributive-law-transformers like ~distParaT~ and its siblings ~distGHisto~[fn:6] and ~distZygoT~ make it straightforward to derive, given a comonad built of comonad transformers, a well-typed distributive law. Every recursion scheme is, under the hood, wrought of the same material. There is an order to these functions, almost symphonic in nature, that, in my view, elevates recursion schemes from 'hey, this is cool' to something deep and fundamental about the nature of recursive computations. Just as the integral and differential calculus allowed Newton and Leibniz to unify the treatment of curves, motion, and infintesimals, /Recursion Schemes from Comonads/ allows us to unify folds, dynamic programming, and mutually-recursive computations (~zygo~). There is a beauty to this treatment of recursion that is symphonic in its harmony.
+
+[fn:8] Given that the result of ~distParaT distHisto~ is isomorphic to ~Ledger t (Base t) a~, we ought to be able to apply ~Data.Coerce.coerce~ to it and have the ~Ledger~ and ~getLedger~ constructors and eliminators applied for us; GHC, however, can't yet prove that this is a well-founded coercion. We have at least the small consolation that GHC will optimize away the overhead of wrapping and unwrapping ~Ledger~ values.
 
 * Reversing the Arrows, One Last Time
 
@@ -403,9 +405,9 @@ Similarly, there exists a ~ghylo~ combinator that generalizes ~hylo~, the refold
 
 As always, I would like to thank Manuel Chakaravarty for checking this series for accuracy. He has done me an extraordinary kindness in lending his time and attention to this series, and it is infinitely better for it. I also need to thank Colin Barrett for his support and insight, and Rob Rix for the motivation and kindness he continually shows me. Ed Kmett, and all the =recursion-schemes= contributors, also deserve many thanks for creating and maintaining such a superlative and essential library. I would also like to thank everyone who read this monograph, especially those who found errors therein: getting this stuff right is hard, and I appreciate your patience in the face of the bugs that have crept in.
 
-There are many more recursion schemes I have yet to cover: zygomorphisms, mutumorphisms, Fokkinga's prepromorphisms and postpromorphisms, Mendler-style catamorphisms and anamorphisms, Vanessa McHale's entangled morphisms (dendro-, scolio-, and chema-), and the nigh-legendary zygohistomorphic prepromorphism. But at this point, after four years spent thinking and writing about recursion schemes, I've decided to put an end to this blog series. I hope, in the future, to have the time to work on a larger, more definitive reference work, covering all the known recursion schemes as well as the topics I had to gloss over. But until then, I'm looking forward to writing about something else.
+There are many more recursion schemes I have yet to cover: zygomorphisms, mutumorphisms, Fokkinga's prepromorphisms and postpromorphisms, Mendler-style catamorphisms and anamorphisms, Vanessa McHale's entangled morphisms (dendro-, scolio-, and chema-), and the nigh-legendary zygohistomorphic prepromorphism. But at this point, after four years spent thinking and writing about recursion schemes, I've decided to put an end to this blog series. I hope, in the future, to have the time to work on a larger, more definitive reference work, covering all the known recursion schemes as well as the topics I had to gloss over. Until then, I'm looking forward to writing about something else; if you've read all of what I had to write here, thank you. The response to this series has been deeply fulfilling. 
 
-If you've read all of what I had to write here, thank you. I wish you way more than luck in whatever your future brings.
+Thank you!
 
 [fn:1] You might remember Uustalu and Vene from /Primitive(Co)Recursion and Course-of-Value (Co)Iteration, Categorically/, which introduced the histomorphism and futumorphism (as covered in the third part of this series).
 
