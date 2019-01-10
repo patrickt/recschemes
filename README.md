@@ -7,4 +7,4 @@ are checked in for your convenience but are generated from the Org files.
 
 To render a file to GFM+footnotes, run `./ghost FILE`. org-babel generates Haskell source.
 
-The generated code samples in `src/` are licensed under the Solopsistic Public License, or the Unlicense. All rights to the blog entries in `org/` are reserved; you may not copy or alter their text.
+These blog entries and code samples are distributed under the CC BY-NC-SA 4.0 license.
