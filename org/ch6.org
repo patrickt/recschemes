@@ -417,7 +417,7 @@ Thank you!
 
 [fn:4] You might remember the term 'distributive law' from elementary algebra: we say that multiplication distributes over addition, in that =5 * (4 + 3)= is equivalent to =(5 * 4) + (5 * 3)=. Given a multiplication operation over an addition, we can distribute that multiplication inside the components of that addition, in essence converting from a product of sums to a sum of products.
 
-[fn:5] In the name of didacticism, fibbed a little on this definition: in =recursion-schemes=, this law is expressed not with a plain Functor ~f~, but with a ~Base t~ functor, due to implementation details (~distPara~ is actually implemented with ~distZygo~, the distributive law for the zygomorphism, which we haven't covered yet.)
+[fn:5] In the name of didacticism, I fibbed a little on this definition: in =recursion-schemes=, this law is expressed not with a plain Functor ~f~, but with a ~Base t~ functor, due to implementation details (~distPara~ is actually implemented with ~distZygo~, the distributive law for the zygomorphism, which we won’t cover in this post.)
 
 [fn:6] It's unclear to me why this is called ~distGHisto~ rather than ~distHistoT~; drop me a line should you know.
 
