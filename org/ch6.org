@@ -5,9 +5,9 @@
 
 /Previous installments: [[https://blog.sumtypeofway.com/an-introduction-to-recursion-schemes/][1]], [[https://blog.sumtypeofway.com/recursion-schemes-part-2/][2]], [[https://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/][3]], [[https://blog.sumtypeofway.com/recursion-schemes-part-iv-time-is-of-the-essence/][4]], [[https://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/][4½]], [[https://blog.sumtypeofway.com/recursion-schemes-part-v/][5]]./
 
-Now that we've covered folds (~cata~, ~para~, and ~histo~), unfolds (~ana~, ~apo~, and ~futu~), and refold (~hylo~, ~hypo~, ~elgot~, and ~chrono~), I hope I have showed that recursion schemes are a useful tool to organize programs, beautify code, and clarify human intent. The above schemes provide sufficient bells and whistles so as to be an essential part of a functional programmer's toolbox. 
+Now that we've covered folds (~cata~, ~para~, and ~histo~), unfolds (~ana~, ~apo~, and ~futu~), and refold (~hylo~, ~hypo~, ~elgot~, and ~chrono~), I hope I have showed that recursion schemes are a useful tool to organize programs, beautify code, and clarify human intent. The above schemes provide sufficient bells and whistles so as to be an essential part of a functional programmer's toolbox.
 
-Yet if we allow ourselves a greater degree of generality in the definition and construction of these recursion schemes, we unlock an underlying similarity between all these definitions. This underlying similarity was outlined by Tarmo Uustalu, Varmo Vene[fn:1], and Alberto Pardo in their 2001 paper /[[https://pdfs.semanticscholar.org/d9a0/b1804341c03bd3cae678c363e4ec317257b5.pdf][Recursion Schemes from Comonads]]/. As is often the case with papers describing recursion schemes, this work is dense and somewhat unapproachable. Initially I deemed Uustalu's exploration of these similarities elegant but inessential: it was my intention to discuss these results on the merits of their beauty rather than their applicability to real-world situations. However, a close read of Edward Kmett's [[http://hackage.haskell.org/package/recursion-schemes-5.0.3/docs/Data-Functor-Foldable.html][ =recursion-schemes= ]] library revealed an implementation of the core ideas behind /Recursion Schemes from Comonads/, and some experimentation revealed to me how and why this paper is useful. 
+Yet if we allow ourselves a greater degree of generality in the definition and construction of these recursion schemes, we unlock an underlying similarity between all these definitions. This underlying similarity was outlined by Tarmo Uustalu, Varmo Vene[fn:1], and Alberto Pardo in their 2001 paper /[[https://pdfs.semanticscholar.org/d9a0/b1804341c03bd3cae678c363e4ec317257b5.pdf][Recursion Schemes from Comonads]]/. As is often the case with papers describing recursion schemes, this work is dense and somewhat unapproachable. Initially I deemed Uustalu's exploration of these similarities elegant but inessential: it was my intention to discuss these results on the merits of their beauty rather than their applicability to real-world situations. However, a close read of Edward Kmett's [[http://hackage.haskell.org/package/recursion-schemes-5.0.3/docs/Data-Functor-Foldable.html][ =recursion-schemes= ]] library revealed an implementation of the core ideas behind /Recursion Schemes from Comonads/, and some experimentation revealed to me how and why this paper is useful.
 
 The essence of Haskell is composition. Functions, folds, lenses, algebras—composition is the melody with which all the disparate elements of Haskell are in tune. Why, then, can I not compose recursion schemes? For example, I have ~para~, which lets me look at the original values alongside the fold's values in-flight, and ~histo~, which provides a lookup table for previously calculated compositions, but what if I need both these properties to define a given fold? Or what if I want to create a new ~hylo~-esque combinator out of the composition of a histomorphism and an apomorphism?
 
@@ -50,9 +50,9 @@ para  :: (Base t (t, a) -> a) -> t -> a
 histo :: (Base t (Cofree (Base t) a) -> a) -> t -> a
 #+END_SRC
 
-Now we have three type signatures, each bearing a different carrier type: ~Identity~ for ~cata~, the tuple ~(t,)~ for ~para~, and ~Cofree (Base t)~ for ~histo~. Each of these types represents a container or context that holds further ~a~ values, which we unify at each step of the fold into a single ~a~ value that is then passed to further iterations of the fold. 
+Now we have three type signatures, each bearing a different carrier type: ~Identity~ for ~cata~, the tuple ~(t,)~ for ~para~, and ~Cofree (Base t)~ for ~histo~. Each of these types represents a container or context that holds further ~a~ values, which we unify at each step of the fold into a single ~a~ value that is then passed to further iterations of the fold.
 
-There is a deep similarity between these three types, though it may not appear so at first glance: they all implement the ~Comonad~ typeclass. 
+There is a deep similarity between these three types, though it may not appear so at first glance: they all implement the ~Comonad~ typeclass.
 
 * Comonads for the Impatient
 
@@ -64,10 +64,10 @@ class Functor w => Comonad w where
   duplicate :: w a -> w (w a)
 #+END_SRC
 
-This is an interface with two functions, to wit:
+This is an interface with two functions:
 
 - ~extract~, which, given some data type ~w~[fn:2] wrapping an ~a~ value, pulls out and returns that ~a~. This is dual to ~Monad~'s ~return~, which stuffs an ~a~ inside a monadic type.
-- ~duplicate~, which, given a ~w a~, wraps it in a further ~w~-container, returning a ~w (w a)~. This is dual to Monad's ~join~. 
+- ~duplicate~, which, given a ~w a~, wraps it in a further ~w~-container, returning a ~w (w a)~. This is dual to Monad's ~join~.
 
 Let's implement ~Comonad~ for the data types we've discussed thus far.
 
@@ -85,7 +85,7 @@ instance Comonad ((,) a) where
   duplicate (a, b) = (a, (a, b))
 #+END_SRC
 
-For tuples (~(,)~), ~extract~ targets the second element of the tuple. Correspondingly, ~duplicate~ replaces the second element of the provided tuple with a copy of itself, yielding a tuple containing a tuple. 
+For tuples (~(,)~), ~extract~ targets the second element of the tuple. Correspondingly, ~duplicate~ replaces the second element of the provided tuple with a copy of itself, yielding a tuple containing a tuple.
 
 #+BEGIN_SRC haskell
 instance Functor f => Comonad (Cofree f) where
@@ -106,21 +106,21 @@ newtype MyProgram = MyProgram { run :: StateT MyState (ReaderT MyEnv (LogicT Ide
 
 By defining this monad, this programmer has built a mini-DSL for describing the capabilities of our program. The ~MonadState~ and ~MonadReader~ interfaces provide her with built-in functionality for accessing the program's environment and modifying it's stateful parameter. We call these contexts---this ~StateT s~, this ~ReaderT e~, this ~LogicT~---/monad transformers/, because each allows us to transform some other monad. Think of it like some layered hard candy: each layer provides a different capability/flavor, down to the "core" monad/chewy center on which all previous layers are built. (This "core" monad is almost always either ~Identity~ or ~IO~, to represent pure and impure computations respectively.)
 
-Because comonads are dual to monads, it stands to reason that there exist transformers for comonads. And indeed, /comonad transformers/ are a well-established construct, though less well-known than their monadic duals. Let's take a look at one of the simpler such transformers, the ~Env~ comonad transformer.
+Because transformers exist for monads and comonads are dual to monads, we can postulate that that there exist transformers for comonads. And indeed, /comonad transformers/ are a well-established construct, though less well-known than their monadic duals. Let's take a look at one of the simpler such transformers, the ~Env~ comonad transformer.
 
 #+BEGIN_SRC haskell
-data EnvT env w a = EnvT env (w a) 
+data EnvT env w a = EnvT env (w a)
   deriving Functor
 #+END_SRC
 
-Given an environment type ~env~, an inner ~Comonad~ ~w~, and a wrapped type ~a~, the ~EnvT~ transformer builds a new comonad with all the capabilities of that ~w~, but that has the added capability of consulting an environment of type ~env~. If this looks like the tuple type ~,~ to you, you're on the right track: you can see ~EnvT~ as a tuple type specifically constructed to hold comonads[fn:3]. To provide a measure of harmony between ~EnvT~ and ~(,)~, we can define a ~ComonadEnv~ typeclass:
+Given an environment type ~env~, an inner ~Comonad~ ~w~, and a wrapped type ~a~, the ~EnvT~ transformer builds a new comonad with all the capabilities of that ~w~, but that has the added capability of consulting an environment of type ~env~. If this looks like the tuple type ~,~ to you, you're right: you can see ~EnvT~ as a tuple type specifically constructed to hold comonads[fn:3]. To provide a measure of harmony between ~EnvT~ and ~(,)~, we can define a ~ComonadEnv~ typeclass:
 
 #+BEGIN_SRC haskell
 class Comonad w => ComonadEnv e w | w -> e where
   ask :: w a -> e
 #+END_SRC
 
-This interface provides us with a generalized ~ask~ function capable of extracting an environment (~e~) from any comonad supporting the notion of environments. 
+This interface provides us with a generalized ~ask~ function capable of extracting an environment (~e~) from any comonad supporting the notion of environments.
 
 #+BEGIN_SRC haskell
 instance ComonadEnv e (EnvT e w) where
@@ -130,8 +130,8 @@ instance ComonadEnv e (EnvT e w) where
 This instance for ~EnvT~ is pretty trivial: we just return the ~env~ parameter. (We don't use ~extract~, since that would target the ~a~, rather than the ~env~, of some ~EnvT env w a~.)
 
 #+BEGIN_SRC haskell
-instance ComonadEnv e (, e) where
-  ask (e, _) = e
+instance ComonadEnv e ((,) e) where
+  ask = fst
 #+END_SRC
 
 Similarly, we can define ~ask~ over tuples, where ~ask~ retrieves the first element of the tuple. Though this may seem like a lot of typing for little benefit, the ~ComonadEnv~ typeclass provides us with a generalized interface to the environment parameter associated with any environmental ~Comonad~. Thus, when we build new ~Comonad~ types out of these comonad transformers, we can always use ~ask~ to extract the environment, saving us from having to memorize an extraction function for each comonad. We'll use this later to provide a fluent interface over the comonads we construct with transformers.
@@ -163,7 +163,7 @@ instance Functor f => Comonad (Ledger t f) where
   duplicate l@(Ledger w) = Ledger (l <$ w) -- add a new Ledger layer to the input
 #+END_SRC
 
-Due to a limitation of GHC, we can't automatically derive an instance of ~Comonad~ for ~Ledger~, but it's not too painful to do so. Similarly, we can write instances for ~ComonadEnv~ and ~ComonadCofree~. (I've annotated these instances with their type signatures, thanks to GHC's ~InstanceSigs~ extension, for the sake of clarity.)
+Due to a limitation of GHC, we can't automatically derive an instance of ~Comonad~ for ~Ledger~, but it's not too painful to do so by hand. Similarly, we can write instances for ~ComonadEnv~ and ~ComonadCofree~. (I've annotated these instances with their type signatures, thanks to GHC's ~InstanceSigs~ extension, for the sake of clarity.)
 
 #+BEGIN_SRC haskell :tangle ../src/Part6.hs
 instance Functor f => ComonadEnv t (Ledger t f) where
@@ -177,9 +177,9 @@ instance Functor f => ComonadCofree f (Ledger t f) where
 
 Now that we have this comonad, we can pose a question: what kind of fold would a ~Ledger t f~ generate? Since the core of this comonad is ~Cofree~, it would presumably be like ~histo~---that is, capable of consulting a record of previously-computed ~f~-results---with behavior similar to that of ~para~, providing access to the original, unprocessed ~t~-values from the beginning of each stage of the fold. We could refer to this scheme as a histoparamorphism, or perhaps a parahistomorphism.
 
-Our first instinct might be to sit down and manually derive a definition of this recursion scheme, like we did for ~cata~, ~para~, and ~histo~. /But we don't have to!/ The contribution of /Recursion Schemes from Comonads/ is that there exists a /generalized catamorphism/ capable of deriving a recursion scheme for any ~Comonad~, as long as we provide a function called a /distributive law/, that describes how operations percolate through and transform a given comonad. This means we never have to write our own recursion schemes: we can lean on the generalized catamorphism, ~gcata~! This provides us a composable, plug-and-play interface to recursion schemes. No longer are we limited to these three built-in combinators---instead, we can build our own, out of compositional, reusable parts, without the repetitive and error-prone process of deriving a recursion scheme for each and every task.
+Our first instinct might be to sit down and manually derive a definition of this recursion scheme, like we did for ~cata~, ~para~, and ~histo~. /But we don't have to!/ The contribution of /Recursion Schemes from Comonads/ is that there exists a /generalized catamorphism/ capable of deriving a recursion scheme for any ~Comonad~, as long as we provide a function called a /distributive law/, that describes how operations percolate through and transform a given comonad. This means we never have to write our own recursion schemes: we can lean on the generalized catamorphism, ~gcata~. This provides us a composable, plug-and-play interface to recursion schemes. No longer are we limited to these three built-in combinators---instead, we can build our own, out of compositional, reusable parts, without the repetitive and error-prone process of deriving a recursion scheme for every task.
 
-But to do this, and to understand how it works, we'll need to look at how these distributive laws and this generalized catamorphism are implemented.
+To do this, and to understand how it works, we'll need to look at how these distributive laws and this generalized catamorphism are implemented.
 
 * The Means of Distribution
 
@@ -210,7 +210,7 @@ Please note that these implementations differ from those in the =recursion-schem
 distLedger :: Comonad f => f (Ledger t f a) -> Ledger t f (f a)
 #+END_SRC
 
-It stands to reason that a distributive law for ~Ledger~ would look something like the above. And indeed, with a little elbow grease we can write a law ourselves that fits into this pattern:
+Working of the examples provided by the prior distributive laws, we can postulate that a distributive law for ~Ledger~ would look something like the above. And indeed, with a little elbow grease we can write a law ourselves that fits into this pattern:
 
 #+BEGIN_SRC haskell :tangle ../src/Part6.hs
 distLedger f = Ledger (EnvT environ cofree) where
@@ -233,7 +233,7 @@ gcata :: (Recursive t, Comonad w)
       -> a
 #+END_SRC
 
-This is… well, it's a lot to take in. I've omitted[fn:7] the implementation, as it would take the rest of this entry to properly elucidate, but we can start understanding ~gcata~ through its type signature. Let's take a look at the first parameter, described in the documentation as the distributive law:
+This is… well, it's a lot to take in. I've omitted[fn:7] the implementation, as it is somewhat dense, but we can start understanding ~gcata~ through its type signature. Let's take a look at the first parameter, described in the documentation as the distributive law:
 
 #+BEGIN_SRC haskell
 forall b . Base t (w b) -> w (Base t b)
@@ -268,7 +268,7 @@ This is pretty remarkable. Simply by specifying a ~Comonad~ and providing a dist
 #+END_SRC
 
 #+RESULTS:
-: gcata distCata 
+: gcata distCata
 :    :: Recursive t => (Base t (Identity a) -> a) -> Term f -> a
 
 That looks identical to the ~Identity~-based ~cata~ that we derived above! Let's throw a type synonym in here, as we did for the original formulation of ~cata~, representing the w-algebra
@@ -297,7 +297,7 @@ So what happens if we plug in our ~distLedger~ function into ~gcata~?
 #+END_SRC
 
 #+RESULTS:
-: gcata distCata 
+: gcata distCata
 :    :: (Recursive t, Comonad (Base t)) => (Base t (Ledger t (Base t) a) -> a) -> t -> a
 
 That's almost correct---we have a ~Ledger~-based W-algebra as the first parameter---but a look at the type constraints shows that this definition is slightly wrong. Restricting this function to types that provide an instance of ~Comonad~ for their ~Base~ functor is much too restrictive, given that most ~Base~ functors don't admit a definition of ~Comonad~. Our error lies in the fact that our ~distLedger~ function used comonadic ~extract~ to extract the environment from a ~f (Ledger env f a)~. However, if we're dealing with ~Base~ functors, we can use the ~Corecursive~ typeclass, which provides an ~embed~ that serves, in this case, the purposes of ~extract~, without any ~Comonad~ constraint. We'll use the ~TypeFamilies~ extension to specify that ~f~ is, in this case, equivalent to ~Base t~, to keep clutter out of the right-hand-side of the definition
@@ -360,8 +360,8 @@ We've established that our ~Ledger~ comonad is the composition of the ~Env~ and 
 
 #+RESULTS:
 : distParaT distHisto
-:     :: Corecursive t 
-:     => Base t (EnvT t (Cofree (Base t)) a) 
+:     :: Corecursive t
+:     => Base t (EnvT t (Cofree (Base t)) a)
 :     -> EnvT t (Cofree (Base t)) (Base t a)
 
 This yields us something almost identical to ~Ledger~---remember that ~Ledger t f a~ wraps a ~EnvT t (Cofree f) a~. Now we can, with some invocations of the ~Ledger~ constructor and ~getLedger~ destructor, write ~distLedger~ without a single pattern-match[fn:8]:
@@ -380,14 +380,14 @@ The upshot of all of this is that, thanks to the generality of ~gcata~, you can 
 ~gcata~ is not the only generalized recursion scheme. There exists its categorical dual, ~gana~, the generalized anamorphism, an unfold operation derived by reversing the arrows in ~gcata~.
 
 #+BEGIN_SRC haskell
-gana :: (Corecursive t, Monad m)	 
+gana :: (Corecursive t, Monad m)
      => (forall b. m (Base t b) -> Base t (m b)) -- ^ a distributive law
      -> (a -> Base t (m a))	            -- ^ a Base-t-m coalgebra
      -> a	                            -- ^ a seed
      -> t
 #+END_SRC
 
-Note that where ~gcata~ entailed a constraint of kind ~(Recursive t, Comonad w)~, ~gana~ takes the dual of both these typeclasses: ~Recursive~ becomes ~Corecursive~ and ~Comonad~ becomes ~Monad~. In addition, we reversed the arrows within the distributive law: whereas the distributive laws for folds turned functors wrapping comonads into comonads wrapping functors, the distributive laws for unfolds turn monads wrapping functors into functors wrapping monads. 
+Note that where ~gcata~ entailed a constraint of kind ~(Recursive t, Comonad w)~, ~gana~ takes the dual of both these typeclasses: ~Recursive~ becomes ~Corecursive~ and ~Comonad~ becomes ~Monad~. In addition, we reversed the arrows within the distributive law: whereas the distributive laws for folds turned functors wrapping comonads into comonads wrapping functors, the distributive laws for unfolds turn monads wrapping functors into functors wrapping monads.
 
 #+BEGIN_SRC haskell
 distAna :: Functor f => Identity (f a) -> f (Identity a)
@@ -397,15 +397,15 @@ distApo :: Recursive t => Either t (Base t a) -> Base t (Either t a)
 distFutu :: Functor f => Free f (f a) -> f (Free f a)
 #+END_SRC
 
-The distributive law for ~ana~ is almost identical to that for ~cata~, since ~Identity~ is dual to itself. By contrast, the distributive law for ~apo~ (the apomorphism, dual to the paramorphism) must deal with ~Either~ values, since the dual of ~(a, b)~ is ~Either a b~. Similarly, ~distFutu~ deals in ~Free~, dual to ~distHisto~'s use of ~Cofree~ =recursion-schemes= also provides transformers capable of building distributive laws for monads, so you need not write them by hand. 
+The distributive law for ~ana~ is almost identical to that for ~cata~, since ~Identity~ is dual to itself. By contrast, the distributive law for ~apo~ (the apomorphism, dual to the paramorphism) must deal with ~Either~ values, since the dual of ~(a, b)~ is ~Either a b~. Similarly, ~distFutu~ deals in ~Free~, dual to ~distHisto~'s use of ~Cofree~ =recursion-schemes= also provides transformers capable of building distributive laws for monads, so you need not write them by hand.
 
-Similarly, there exists a ~ghylo~ combinator that generalizes ~hylo~, the refold. ~hylo~ was already very powerful and general, given the set of problems to which it is amenable, but ~ghylo~ takes it even farther: you can build a refold out of ~futu~ and ~apo~, or ~ana~ and ~histo~, or any other combination of the comonadic recursion schemes.
+Similarly, there exists a ~ghylo~ combinator that generalizes ~hylo~, the refold. ~hylo~ was already powerful and general, given the set of problems to which it is amenable, but ~ghylo~ takes it even farther: you can build a refold out of ~futu~ and ~apo~, or ~ana~ and ~histo~, or any other combination of the comonadic recursion schemes.
 
 * Au Revoir, Recursion Schemes
 
-As always, I would like to thank Manuel Chakaravarty for checking this series for accuracy. He has done me an extraordinary kindness in lending his time and attention to this series, and it is infinitely better for it. I also need to thank Colin Barrett for his support and insight, and Rob Rix for the motivation and kindness he continually shows me. Ed Kmett, and all the =recursion-schemes= contributors, also deserve many thanks for creating and maintaining such a superlative and essential library. I would also like to thank everyone who read this monograph, especially those who found errors therein: getting this stuff right is hard, and I appreciate your patience in the face of the bugs that have crept in.
+As always, I would like to thank Manuel Chakaravarty for checking this series for accuracy. He has done me an extraordinary kindness in lending his time and attention to this series, and it is infinitely better for it. I also need to thank Colin Barrett for his support and insight, and Rob Rix for the motivation and kindness he continually shows me. Ed Kmett, and all the =recursion-schemes= contributors, also deserve many thanks for creating and maintaining such a superlative and essential library. I would also like to thank everyone who read these monographs, especially those who found errors therein: getting this stuff right is hard, and I appreciate your patience in the face of the bugs that have crept in.
 
-There are many more recursion schemes I have yet to cover: zygomorphisms, mutumorphisms, Fokkinga's prepromorphisms and postpromorphisms, Mendler-style catamorphisms and anamorphisms, Vanessa McHale's entangled morphisms (dendro-, scolio-, and chema-), and the nigh-legendary zygohistomorphic prepromorphism. But at this point, after four years spent thinking and writing about recursion schemes, I've decided to put an end to this blog series. I hope, in the future, to have the time to work on a larger, more definitive reference work, covering all the known recursion schemes as well as the topics I had to gloss over. Until then, I'm looking forward to writing about something else; if you've read all of what I had to write here, thank you. The response to this series has been deeply fulfilling. 
+There are many more recursion schemes I am leaving undiscussed: zygomorphisms, mutumorphisms, Fokkinga's prepromorphisms and postpromorphisms, Mendler-style catamorphisms and anamorphisms, Vanessa McHale's entangled morphisms (dendro-, scolio-, and chema-), and the nigh-legendary [[https://wiki.haskell.org/Zygohistomorphic_prepromorphisms][zygohistomorphic prepromorphism]]. But at this point, after five years spent thinking and writing about recursion schemes, I've decided to put an end to this blog series. I hope, in the future, to have the time to work on a larger, more definitive reference work, covering all the known recursion schemes as well as the topics I had to gloss over. Until then, I'm looking forward to writing about something else; if you've read all of what I had to write here, I truly appreciate it. The response to this series has been deeply fulfilling.
 
 Thank you!
 
@@ -413,7 +413,7 @@ Thank you!
 
 [fn:2] Most documentation uses ~w~ to represent types that implement ~Comonad~, probably because ~c~ is often used in bindings of values, and because ~w~ looks like a flipped---that is to say, arrow-reversed---version of ~m~, which is used for ~Monad~ type variables.
 
-[fn:3] In other words, ~EnvT env w a~ is isomorphic to ~(env, w a)~, and ~EnvT env Identity a~ is isomorphic to ~(env, a)~.
+[fn:3] In other words, ~EnvT env w a~ is representationally equal to ~(env, w a)~, and ~EnvT env Identity a~ is isomorphic to ~(env, a)~.
 
 [fn:4] You might remember the term 'distributive law' from elementary algebra: we say that multiplication distributes over addition, in that =5 * (4 + 3)= is equivalent to =(5 * 4) + (5 * 3)=. Given a multiplication operation over an addition, we can distribute that multiplication inside the components of that addition, in essence converting from a product of sums to a sum of products.
 

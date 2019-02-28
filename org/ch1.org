@@ -15,7 +15,7 @@ Because nested structures appear in almost every problem domain and programming 
 
 Meijer et. al go so far as to condemn functional programming without recursion schemes as morally equivalent to imperative programming with =goto=. While comparisons to Djikstra's [[https://homepages.cwi.nl/~storm/teaching/reader/Dijkstra68.pdf][infamous letter to the ACM]] are often inane, the analogy is apt: just as using =while= and =for= loops rather than `goto` brings structure and harmony to imperative control flow, the use of recursion schemes over hand-written brings similar structure to recursive computations. This insight is so important that I'll repeat it: /recursion schemes are just as essential to idiomatic functional programming as =for= and =while= are to idiomatic imperative programming/.
 
-I've chosen to express the ideas in /Bananas, Lenses, Envelopes and Barbed Wire/ in Haskell, though the paper was written years before Haskell came to prominence[fn:notation]. If you don't know Haskell very well, *don't panic*: you don't need to be a Haskell whiz to understand the ideas presented here. I assume only a basic familiarity with [[http://cheatsheet.codeslower.com/CheatSheet.pdf][Haskell syntax]] and the use of [[http://learnyouahaskell.com/making-our-own-types-and-typeclasses][algebraic data types]]. I'm going to rely on a few idioms to better illustrate the concepts underlying recursion schemes---when I do, I will explain what happens behind the scenes. If you're wholly unfamiliar with Haskell, you may want to dip into the first few chapters of [[http://learnyouahaskell.com][Learn You a Haskell]].
+I've chosen to express the ideas in /Bananas, Lenses, Envelopes and Barbed Wire/ in Haskell, though the paper was written years before Haskell came to prominence[fn:notation]. If you don't know Haskell very well, *don't panic*: you don't need to be a Haskell whiz to understand the ideas presented here. I assume only a basic familiarity with [[http://cheatsheet.codeslower.com/CheatSheet.pdf][Haskell syntax]] and the use of [[http://learnyouahaskell.com/making-our-own-types-and-typeclasses][algebraic data types]]. I'm going to rely on a few idioms to better illustrate the concepts underlying recursion schemes---when I do, I will explain what happens behind the scenes. If you're wholly unfamiliar with Haskell, you may want to dip into the first few chapters of [[http://haskellbook.com/][Haskell Programming from First Principles]].
 
 I'll start with the simplest way to represent a well-typed syntax tree, then show how that simplicity makes it difficult to write a function that generically traverses and modifies trees. I'll then redefine our syntax tree so as to take advantage of existing Haskell idioms and the expressive power of parameterized data types. Finally, I'll show how recursion schemes emerge naturally when we express step-by-step descriptions of recursion patterns with common Haskell idioms.
 
@@ -173,7 +173,7 @@ data ExprF a
 
 In addition, you can derive instances of the =Foldable= and =Traversable= typeclasses, which provide dozens of of useful functions to access and iterate through an =Expr='s subexpressions---in essence, =Expr= now comes with batteries included. Parameterizing =Expr= and deriving =Functor=, =Foldable=, and =Traversable= provides us with an embarrassment of helper functions---but this parameterized version of =Expr= isn't quite the same as our previous defintion!
 
-Our first formulation of =Expr=, since its recursive subfields were of type =Expr=, could represent arbitrarily-nested =Expr= values, but this new one can't---it seems like we always have to insert =Lit=---to establish the maximum possible depth of a tree of =Expr=s:
+Our first formulation of =Expr=, since its recursive subfields were of type =Expr=, could represent arbitrarily-nested =Expr= values, but this new one can't---it seems like we always have to insert =Lit=---to establish the maximum possible depth of a tree of =Expr= values:
 
 - =ExprF Lit= represents an expression with no subexpressions
 - =ExprF (ExprF Lit)= represents expressions with at most one more layer of subexpressions.
@@ -195,7 +195,7 @@ Consider the Y-combinator. Given a function f that takes one argument, =y(f)= re
 y f = f (f (f (f ...)))
 #+END_SRC
 
-The sharp-eyed will have noticed that the expansion of =y(f)= is very similar to our =NestedExpr= type above. If we have a Y-combinator embedded entirely /in the type system/, we can describe the repeated application of =Expr= to itself, in a manner identical to how the value-level Y-combinator operators on functions, and in turn we can describe an =Expr a= where =a= represents arbitrarily-nested =Expr=s.
+The sharp-eyed will have noticed that the expansion of =y(f)= is very similar to our =NestedExpr= type above. If we have a Y-combinator embedded entirely /in the type system/, we can describe the repeated application of =Expr= to itself, in a manner identical to how the value-level Y-combinator operators on functions, and in turn we can describe an =Expr a= where =a= represents an infinite stream of nested =Expr= values.
 
 #+BEGIN_SRC haskell
 type Y t = t (t (t (t (t ...))))
@@ -213,7 +213,7 @@ out (In t) = t
 #+END_SRC
 
 
-It's illuminating to substitute =Expr= in for the type variable =f= in this equation, in order to see what it looks like to construct and deconstruct the fixed-point of an =Expr= value. Using GHC's =TypeApplications= extension to specialize =f= to et's ask GHCi the type signature of =In= over =ExprF= values.
+It's illuminating to substitute =Expr= in for the type variable =f= in this equation, in order to see what it looks like to construct and deconstruct the fixed-point of an =Expr= value. Using GHC's =TypeApplications= extension to set the value =f= equal to =ExprF=, let's ask GHCi the type signature of =In= over =ExprF= values.
 
 #+BEGIN_SRC haskell :results output :exports both
 :t In @ExprF :: ExprF (Term ExprF) -> Term ExprF
@@ -351,6 +351,6 @@ spec = do
 
 [fn:fixed] A complete discussion of the beauty and notability of fixed-point combinators is beyond the scope of this article: for such explorations, please refer to Raymond Smullyan's wonderful [[http://www.amazon.com/To-Mock-Mockingbird-Other-Puzzles/dp/0192801422][/To Mock a Mockingbird/]] or Reginald Braithwaite's [[https://leanpub.com/combinators][Kestrels, Quirky Birds, and Hopeless Egocentricity]].
 
-[fn:fmap] You may be curious as to why Haskell provides both =map= and =fmap= functions in its Prelude, considering that =map= is just a version of =fmap= that can only operate on lists. This has indeed been a bone of contention within the Haskell community. As Brent Yorgey, author of the essential [[http://www.haskell.org/haskellwiki/Typeclassopedia#Instances][Typeclassopedia]], put it: "the usual argument is that someone just learning Haskell, when using =map= incorrectly, would much rather see an error about lists than about =Functor=s."
+[fn:fmap] You may be curious as to why Haskell provides both =map= and =fmap= functions in its Prelude, considering that =map= is just a version of =fmap= that can only operate on lists. This has indeed been a bone of contention within the Haskell community. As Brent Yorgey, author of the essential [[http://www.haskell.org/haskellwiki/Typeclassopedia#Instances][Typeclassopedia]], put it: "the usual argument is that someone just learning Haskell, when using =map= incorrectly, would much rather see an error about lists than about Functors."
 
 [fn:composition] This function is provided by the Haskell prelude with the =.= operator.
