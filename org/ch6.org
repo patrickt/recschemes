@@ -5,13 +5,13 @@
 
 /Previous installments: [[https://blog.sumtypeofway.com/an-introduction-to-recursion-schemes/][1]], [[https://blog.sumtypeofway.com/recursion-schemes-part-2/][2]], [[https://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/][3]], [[https://blog.sumtypeofway.com/recursion-schemes-part-iv-time-is-of-the-essence/][4]], [[https://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/][4½]], [[https://blog.sumtypeofway.com/recursion-schemes-part-v/][5]]./
 
-Now that we've covered folds (~cata~, ~para~, and ~histo~), unfolds (~ana~, ~apo~, and ~futu~), and refold (~hylo~, ~hypo~, ~elgot~, and ~chrono~), I hope I have showed that recursion schemes are a useful tool to organize programs, beautify code, and clarify human intent. The above schemes provide sufficient bells and whistles so as to be an essential part of a functional programmer's toolbox.
+Now that we've covered folds (~cata~, ~para~, and ~histo~), unfolds (~ana~, ~apo~, and ~futu~), and refolds (~hylo~, ~hypo~, ~elgot~, and ~chrono~), I hope I have showed that recursion schemes are a useful tool to organize programs, beautify code, and clarify human intent. The above schemes provide sufficient bells and whistles so as to be an essential part of a functional programmer's toolbox.
 
 Yet if we allow ourselves a greater degree of generality in the definition and construction of these recursion schemes, we unlock an underlying similarity between all these definitions. This underlying similarity was outlined by Tarmo Uustalu, Varmo Vene[fn:1], and Alberto Pardo in their 2001 paper /[[https://pdfs.semanticscholar.org/d9a0/b1804341c03bd3cae678c363e4ec317257b5.pdf][Recursion Schemes from Comonads]]/. As is often the case with papers describing recursion schemes, this work is dense and somewhat unapproachable. Initially I deemed Uustalu's exploration of these similarities elegant but inessential: it was my intention to discuss these results on the merits of their beauty rather than their applicability to real-world situations. However, a close read of Edward Kmett's [[http://hackage.haskell.org/package/recursion-schemes-5.0.3/docs/Data-Functor-Foldable.html][ =recursion-schemes= ]] library revealed an implementation of the core ideas behind /Recursion Schemes from Comonads/, and some experimentation revealed to me how and why this paper is useful.
 
 The essence of Haskell is composition. Functions, folds, lenses, algebras—composition is the melody with which all the disparate elements of Haskell are in tune. Why, then, can I not compose recursion schemes? For example, I have ~para~, which lets me look at the original values alongside the fold's values in-flight, and ~histo~, which provides a lookup table for previously calculated compositions, but what if I need both these properties to define a given fold? Or what if I want to create a new ~hylo~-esque combinator out of the composition of a histomorphism and an apomorphism?
 
-Thanks to Uustalu et al.'s ideas, our toolbox of recursion schemes becomes something more: rather than limiting us to the dozen or so predefined recursion schemes, we can build combinators capable of to combining and composing existing schemes into new schemes, building a solution tailor-made to the needs of the situation. This result is more than a beautiful implementation: it unifies a set of related but disparate tools into a single cohesive abstraction. I hope in this article to outline these ideas, though the density of the paper itself means I won't be stepping closely through it.
+Thanks to Uustalu et al.'s ideas, our toolbox of recursion schemes becomes something more: rather than limiting us to the dozen or so predefined recursion schemes, we can build combinators capable of combining and composing existing schemes into new schemes, building a solution tailor-made to the needs of the situation. This result is more than a beautiful implementation: it unifies a set of related but disparate tools into a single cohesive abstraction. I hope in this article to outline these ideas, though the density of the paper itself means I won't be stepping closely through it.
 
 This article uses the ~Base~-functor formulation of recursion schemes, as described in Kmett's library, rather than the ad-hoc library we've designed in previous installments of this series. If you want an overview of why this formulation is useful, my [[https://blog.sumtypeofway.com/recursion-schemes-part-41-2-better-living-through-base-functors/][prior post]] on the matter may be helpful.
 
@@ -251,13 +251,16 @@ This is congruent with our earlier examples: given some comonad ~w~ and a ~Base~
 (f (w a) -> a)
 #+END_SRC
 
-This looks a lot like our definition of ~Algebra~, which was ~f a -> a~. Yet instead of a functor wrapping just ~a~ values, this functor wraps ~w a~ values. We'll call this a ~w~-algebra. Stripped of =recursion-schemes='s machinery for ~Base~ (which, though it provides a significant measure of real-world convenience, can clutter up definitions such as these), we can take a look at the essence of ~gcata~:
+This looks a lot like our definition of ~Algebra~, which was ~f a -> a~. Yet instead of a functor wrapping just ~a~ values, this functor wraps ~w a~ values. We'll call this a ~w~-algebra. Stripped of =recursion-schemes='s machinery for ~Base~ (which, though it provides a significant measure of real-world convenience, can clutter up definitions such as these), and by defining type synonyms for distributive laws and ~w~ algebras, we can take a look at the essence of ~gcata~:
 
 #+BEGIN_SRC haskell
+type WDistLaw f w = forall b . f (w b) -> w (f b)
+type WAlgebra f w a = f (w a) -> a
+
 gcata :: (Functor f, Comonad w)
-      => (forall b. f (w b) -> w (f b)) -- ^ a distributive law
-      -> (f (w a) -> a)            -- ^ a w-algebra
-      -> Term f                    -- ^ fixed point
+      => WDistLaw f w    -- ^ a distributive law
+      -> WAlgebra f w a  -- ^ a w-algebra returning 'a'
+      -> Term f
       -> a
 #+END_SRC
 
@@ -297,10 +300,10 @@ So what happens if we plug in our ~distLedger~ function into ~gcata~?
 #+END_SRC
 
 #+RESULTS:
-: gcata distCata
+: gcata distLedger
 :    :: (Recursive t, Comonad (Base t)) => (Base t (Ledger t (Base t) a) -> a) -> t -> a
 
-That's almost correct---we have a ~Ledger~-based W-algebra as the first parameter---but a look at the type constraints shows that this definition is slightly wrong. Restricting this function to types that provide an instance of ~Comonad~ for their ~Base~ functor is much too restrictive, given that most ~Base~ functors don't admit a definition of ~Comonad~. Our error lies in the fact that our ~distLedger~ function used comonadic ~extract~ to extract the environment from a ~f (Ledger env f a)~. However, if we're dealing with ~Base~ functors, we can use the ~Corecursive~ typeclass, which provides an ~embed~ that serves, in this case, the purposes of ~extract~, without any ~Comonad~ constraint. We'll use the ~TypeFamilies~ extension to specify that ~f~ is, in this case, equivalent to ~Base t~, to keep clutter out of the right-hand-side of the definition
+That's almost correct---we have a ~Ledger~-based W-algebra as the first parameter---but a look at the type constraints shows that this definition is slightly wrong. Restricting this function to types that provide an instance of ~Comonad~ for their ~Base~ functor is much too restrictive, given that most ~Base~ functors don't admit a definition of ~Comonad~. Our error lies in the fact that our ~distLedger~ function used comonadic ~extract~ to extract the environment from a ~f (Ledger env f a)~. However, if we're dealing with ~Base~ functors, we can use the ~Corecursive~ typeclass, which provides an ~embed~ that serves, in this case, the purposes of ~extract~, without any ~Comonad~ constraint. We'll use an equality constraint ~\~~ (provided by the ~TypeFamilies~ extension) to specify that ~f~ is, in this case, equivalent to ~Base t~, to keep clutter out of the right-hand-side of the definition
 
 #+BEGIN_SRC haskell :tangle ../src/Part6.hs
 distLedger' :: (Corecursive t, f ~ Base t) => f (Ledger t f a) -> Ledger t f (f a)
@@ -371,7 +374,7 @@ distLedger'' :: Corecursive t => Base t (Ledger t (Base t) a) -> Ledger t (Base 
 distLedger'' = fmap getLedger >>> distParaT distHisto >>> Ledger
 #+END_SRC
 
-The upshot of all of this is that, thanks to the generality of ~gcata~, you can combine arbitrary capabilities, from any type of fold, into a bespoke fold that exactly fits the problem at hand. Furthermore, you never need to write a distributive law by hand: the distributive-law-transformers like ~distParaT~ and its siblings ~distGHisto~[fn:6] and ~distZygoT~ make it straightforward to derive, given a comonad built of comonad transformers, a well-typed distributive law. Every recursion scheme is, under the hood, wrought of the same material. There is an order to these functions, almost symphonic in nature, that, in my view, elevates recursion schemes from 'hey, this is cool' to something deep and fundamental about the nature of recursive computations. Just as the integral and differential calculus allowed Newton and Leibniz to unify the treatment of curves, motion, and infintesimals, /Recursion Schemes from Comonads/ allows us to unify folds, dynamic programming, and mutually-recursive computations (~zygo~). There is a beauty to this treatment of recursion that is symphonic in its harmony.
+The upshot of all of this is that, thanks to the generality of ~gcata~, you can combine arbitrary capabilities, from any type of fold, into a bespoke fold that exactly fits the problem at hand. Furthermore, you never need to write a distributive law by hand: the distributive-law-transformers like ~distParaT~ and its siblings ~distGHisto~[fn:6] and ~distZygoT~ make it straightforward to derive, given a comonad built of comonad transformers, a well-typed distributive law. Every recursion scheme is, under the hood, wrought of the same material. There is a underlying order and rhythm shared between all recursion schemes, that, in my view, elevates this approach from 'hey, this is cool' to something that shows us deep and fundamental aspects of the nature of recursive computations. Just as the integral and differential calculus allowed Newton and Leibniz to unify the treatment of curves, motion, and infinitesimals, /Recursion Schemes from Comonads/ allows us to unify folds, dynamic programming, and mutually-recursive computations (~zygo~). There is a beauty to this treatment of recursion that is symphonic in its harmony.
 
 [fn:8] Given that the result of ~distParaT distHisto~ is isomorphic to ~Ledger t (Base t) a~, we ought to be able to apply ~Data.Coerce.coerce~ to it and have the ~Ledger~ and ~getLedger~ constructors and eliminators applied for us; GHC, however, can't yet prove that this is a well-founded coercion. We have at least the small consolation that GHC will optimize away the overhead of wrapping and unwrapping ~Ledger~ values.
 
@@ -413,7 +416,7 @@ Thank you!
 
 [fn:2] Most documentation uses ~w~ to represent types that implement ~Comonad~, probably because ~c~ is often used in bindings of values, and because ~w~ looks like a flipped---that is to say, arrow-reversed---version of ~m~, which is used for ~Monad~ type variables.
 
-[fn:3] In other words, ~EnvT env w a~ is representationally equal to ~(env, w a)~, and ~EnvT env Identity a~ is isomorphic to ~(env, a)~.
+[fn:3] In other words, ~EnvT env w a~ is representationally equal to ~(env, w a)~, and ~EnvT env Identity a~ is isomorphic to ~(env, a)~. We can also see ~EnvT~ as dual in nature to ~ReaderT~: it binds a formerly-free variable on which some further computation depends.
 
 [fn:4] You might remember the term 'distributive law' from elementary algebra: we say that multiplication distributes over addition, in that =5 * (4 + 3)= is equivalent to =(5 * 4) + (5 * 3)=. Given a multiplication operation over an addition, we can distribute that multiplication inside the components of that addition, in essence converting from a product of sums to a sum of products.
 
