@@ -171,7 +171,7 @@ data ExprF a
   deriving (Show, Eq, Functor) -- fmap for free
 #+END_SRC
 
-In addition, you can derive instances of the =Foldable= and =Traversable= typeclasses, which provide dozens of of useful functions to access and iterate through an =Expr='s subexpressions---in essence, =Expr= now comes with batteries included. Parameterizing =Expr= and deriving =Functor=, =Foldable=, and =Traversable= provides us with an embarrassment of helper functions---but this parameterized version of =Expr= isn't quite the same as our previous defintion!
+In addition, you can derive instances of the =Foldable= and =Traversable= typeclasses, which provide dozens of useful functions to access and iterate through an =Expr='s subexpressions---in essence, =Expr= now comes with batteries included. Parameterizing =Expr= and deriving =Functor=, =Foldable=, and =Traversable= provides us with an embarrassment of helper functions---but this parameterized version of =Expr= isn't quite the same as our previous defintion!
 
 Our first formulation of =Expr=, since its recursive subfields were of type =Expr=, could represent arbitrarily-nested =Expr= values, but this new one can't---it seems like we always have to insert =Lit=---to establish the maximum possible depth of a tree of =Expr= values:
 
@@ -195,13 +195,13 @@ Consider the Y-combinator. Given a function f that takes one argument, =y(f)= re
 y f = f (f (f (f ...)))
 #+END_SRC
 
-The sharp-eyed will have noticed that the expansion of =y(f)= is very similar to our =NestedExpr= type above. If we have a Y-combinator embedded entirely /in the type system/, we can describe the repeated application of =Expr= to itself, in a manner identical to how the value-level Y-combinator operators on functions, and in turn we can describe an =Expr a= where =a= represents an infinite stream of nested =Expr= values.
+The sharp-eyed will have noticed that the expansion of =y(f)= is very similar to our =NestedExpr= type above. If we have a Y-combinator embedded entirely /in the type system/, we can describe the repeated application of =Expr= to itself, in a manner identical to how the value-level Y-combinator operates on functions, and in turn we can describe an =Expr a= where =a= represents an infinite stream of nested =Expr= values.
 
 #+BEGIN_SRC haskell
 type Y t = t (t (t (t (t ...))))
 #+END_SRC
 
-This general concept[fn:fixed] is known as 'fixed-point': we say that =y(f)= is the fixed point (or fixpoint) of the =f= function, and that =Y Expr= is the /fixed point of the =Expr= functor/. And here's the kicker---we can build a Y-combinator that works /in the type system/ too, and that's is how we will express the self-similar nature of an =Expr='s subexpressions.
+This general concept[fn:fixed] is known as 'fixed-point': we say that =y(f)= is the fixed point (or fixpoint) of the =f= function, and that =Y Expr= is the /fixed point of the =Expr= functor/. And here's the kicker---we can build a Y-combinator that works /in the type system/ too, and that's how we will express the self-similar nature of an =Expr='s subexpressions.
 
 We need a data type =Y= that, when given another type =f=, wraps an =f= whose children are of type =(Y f)=. Let's call it =Term=, and let's call its constructor =In=, representing the fact that we are stuffing one level of recursion into a fixed form. In addition, we'll define an =out= function that unwraps a =Term=.
 
@@ -243,7 +243,7 @@ deriving instance (Eq (f (Term f))) => Eq (Term f)
 deriving instance (Show (f (Term f))) => Show (Term f)
 #+END_SRC
 
-From these definitions, we can see that, given a =Term Expr=, we can use the =out= function to convert it to an =Expr= the subexpressions of which are, in turn =Term Expr= values. That means that we can unwrap a =Term Expr= into an /arbitrarily-nested/ =Expr= through successive applications of =out=: our =Term Expr= can expand into an =Expr (Term Expr)=, which can expand into an =Expr (Expr (Term Expr))=, and so on and so forth. This style of defining recursive types using fixed-points of functors is an example of /codata/. A full discussion of the theory behind codata (and the many different forms that codata can take) is, unfortunately, beyond the scope of this article; I recommend [[http://www.tac-tics.net/data-vs-codata][this]] excellent introduction.
+From these definitions, we can see that, given a =Term Expr=, we can use the =out= function to convert it to an =Expr= the subexpressions of which are, in turn =Term Expr= values. That means that we can unwrap a =Term Expr= into an /arbitrarily-nested/ =Expr= through successive applications of =out=: our =Term Expr= can expand into an =Expr (Term Expr)=, which can expand into an =Expr (Expr (Term Expr))=, and so on and so forth. This style of defining recursive types using fixed-points of functors is an example of /codata/. A full discussion of the theory behind codata (and the many different forms that codata can take) is, unfortunately, beyond the scope of this article; I recommend [[https://www.tac-tics.net/blog/data-vs-codata][this]] excellent introduction.
 
 * Generic Traversals
 
