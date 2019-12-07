@@ -117,8 +117,8 @@ This function decouples the definition of a recursive function from its recursiv
 
 #+BEGIN_SRC haskell :tangle ../src/Part1.hs
 flatten' :: Expr -> Expr
-flatten' (Paren e) = flatten e
-flatten' x = applyExpr flatten x
+flatten' (Paren e) = flatten' e
+flatten' x = applyExpr flatten' x
 #+END_SRC
 
 This function just got far, far easier to write and maintain. The =apply= function is now responsible for both the base case and the simple recursive case of flattening an expression: all we have to do is define the interesting case, i.e. its handling of =Paren= nodes. Awesome.
