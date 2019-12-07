@@ -133,7 +133,7 @@ type Algebra f a = f a -> a
 
 #+BEGIN_SRC haskell
 cata' :: Functor f => Algebra f a -> Term f -> a
-cata' = para'' (const f)
+cata' f = para'' (const f)
 #+END_SRC
 
 Beautiful, no? This is one of the really appealing things about recursion schemes: as we explore more and more powerful constructs, we see how the less-powerful constructs can be implemented straightforwardly in terms of more general ones.

@@ -212,7 +212,7 @@ prettyPrint (Ident s) = P.text s
 And our inductively-defined cases are beautifully clutter-free:
 
 #+BEGIN_SRC haskell :tangle ../src/Part2.hs
-prettyPrint (Call f as)     = f <> P.parens (P.punctuate "," as)  ---f(a,b...)
+prettyPrint (Call f as)     = f <> P.parens (mconcat (P.punctuate "," as))  ---f(a,b...)
 prettyPrint (Index it idx)  = it <> P.brackets idx                ---a[b]
 prettyPrint (Unary op it)   = (P.text op) <> it                   ---op x
 prettyPrint (Binary l op r) = l <> (P.text op) <> r               ---lhs op rhs
@@ -239,18 +239,17 @@ bottomUp f = cata (In >>> f)
 This formulation of recursive traversals sure is elegant---but elegance isn't enough. The real reason to use catamorphisms is that every catamorphism obeys a set of laws.[fn:6] The simplest law is the identity law:
 
 #+BEGIN_SRC haskell
-cata In = id
+cata In ≍ id
 #+END_SRC
 
-This is pretty straightforward. The =In= constructor, which provides the fixed-point of a functor, is the simplest algebra: given a functor =f= wrapping a =Term f=, it turns it into a =Term f=, leaving the value untouched. And iterating over the contents of a structure without changing them is clearly the identity function. 
+This is pretty straightforward[fn:7]. The =In= constructor, which provides the fixed-point of a functor, is the simplest algebra: given a functor =f= wrapping a =Term f=, it turns it into a =Term f=, leaving the value untouched. And iterating over the contents of a structure without changing them is clearly the identity function.
 
 Catamorphisms can also /fuse/:
 
 #+BEGIN_SRC haskell
 -- given alg :: f a -> a
 -- and func  :: f a -> f
-cata (alg >>> fmap func) =>
-   (cata alg) >>> func
+cata (alg >>> fmap func) ≍ (cata alg) >>> func
 #+END_SRC
 
 This is an extraordinarily powerful property of catamorphisms: in the above example, it allows you to avoid successive invocations of fmap.
@@ -260,11 +259,74 @@ Catamorphisms also /compose/: given an algebra over a given type
 #+BEGIN_SRC haskell
 -- given alg  :: f a -> a
 -- and func :: f a -> g a
-cata (f >>> In) >>> cata g
-   ==> cata (f >>> g)
+cata (f >>> In) >>> cata g ≍ cata (f >>> g)
 #+END_SRC
 
 That is to say, the result of composing two separate catamorphisms is equivalent to a single catamorphism using the combination of the contained algebras. This is amazing, almost magically so: the composition law allows us to turn two separate calls to =cata= into one.
+
+[fn:7] The ~≍~ symbol is Unicode's ~EQUIVALENT TO~ glyph, and is read as such. This wouldn't be valid Haskell syntax, unless you defined a ~≍~ function of your own.
+
+** Anamorphisms
+
+In the last post, we defined a corresponding topDown method, the opposite of bottomUp. Furthermore, we did so by “reversing the arrows” in bottomUp: we changed the left-to-right composition operator ~>>>~ to its flipped ~<<<~ (which is equivalent to the ~.~ operator), and we flipped around all invocations of ~out~ to ~In~ and ~In~ to ~out~.
+
+#+BEGIN_SRC haskell
+bottomUp f = out >>> fmap (bottomUp f) >>> In  >>> f
+topDown  f = In  <<< fmap (topDown  f) <<< out <<< f
+#+END_SRC
+
+By applying this “reversing the arrows” trick, we managed to express the duality between bottom-up and top-down traversals. So what happens if we do the same to our definition of cata? Does it typecheck?
+
+#+BEGIN_SRC haskell
+-- given that cata f = out >>> fmap (cata f) >>> f
+-- reverse the arrows: >>> becomes <<<. and out becomes In
+
+reversed f = In <<< fmap (what f) <<< f
+#+END_SRC
+
+You’re damn right it does. What’s its type signature?
+
+#+BEGIN_SRC haskell :results output :exports both
+:t reversed
+#+END_SRC
+
+#+RESULTS:
+: what :: (Functor f) => (a -> f a) -> a -> Term f
+
+Just as when we yielded a top-down traversal by reversing a bottom-up one, we yield an unfold when we reverse the arrows in our generalized fold function. Again, let’s take a look at the type of the first parameter, the unfolding function:
+
+#+BEGIN_SRC haskell
+Functor f => (a -> f a)
+#+END_SRC
+
+Similar to our Algebra type ~a -> f a~, right? Exactly the same, except the direction of the function arrow has reversed: whereas algebras are mappings from ~f a~ to ~a~, this new function type maps as to f as. We call this function type a coalgebra.
+
+#+BEGIN_SRC haskell :tangle ../src/Part2.hs
+type Coalgebra f a = a -> f a
+#+END_SRC
+
+We call the what an anamorphism – the “ana” prefix, from the Greek “ἀνά” meaning “building”[fn:8], is the opposite of “cata”, meaning “destruction”. Just like cata generalized fold from lists to any Functor, ana generalizes unfold to any Functor.
+
+#+BEGIN_SRC haskell :tangle ../src/Part2.hs
+ana :: (Functor f) => Coalgebra f a -> a -> Term f
+ana f = In <<< fmap (ana f) <<< f
+#+END_SRC
+
+If we thought about algebras as reunions, we can think about coalgebras as disassembly or dispersion. We’re taking one established a value and stuffing it inside a context ~f~. If that ~f~ is ~Maybe~, then we’re allowing for the possibility that no value will be present; if that ~f~ is a list data type, it means we’re allowing there to be zero or more results.
+
+Just as ~cata~ is a generalized version of the ~foldr~ function on list values, ~ana~ is a generalization of ~unfoldr~. In our previous examples, we used ~cata~ to destroy a ~Term Expr~; here, we'll use ~ana~ to build one, consisting of ~n~ nested values.
+
+#+BEGIN_SRC haskell :tangle ../src/Part2.hs
+nested :: Int -> Term Expr
+nested n = ana go n where
+  go :: Coalgebra Expr Int
+  go 0 = Literal n
+  go n = Paren (n - 1)
+#+END_SRC
+
+The case for ~0~ is our base case: the unfold process stops there, because ~Literal~ nodes have no children: future invocations of ~fmap~ on that ~Literal~ node will not produce further recursion. The second case is our inductive case. Rather than an explicitly recursive call (e.g. ~Paren (nested (n - 1))~), we express the desired course of our recursion by passing that ~n - 1~ value directly inside a ~Paren~ node. Remember that this ~Coalgebra~ is ultimately yielding a value of type ~Expr Int~; by constructing that ~Paren~ around an ~Int~, we specify that ~ana~ should continue the unfold by recursing and carrying on subsequent iterations with ~n - 1~ as the seed value.
+
+[fn:8] /Anabolic/ steroids build muscle mass, /anagenesis/ is the development (the building, in a sense) of new species, &c &c.
 
 ** Was That Really So Hard?
 
