@@ -134,13 +134,13 @@ worker t = Attr _ _
 The first field, the ~a~, is yielded by recursing with ~histo~ on the provided ~Term~---easy enough. This is just like the catamorphism---indeed, a catamorphism is a histomorphism that ignores the provided history.
 
 #+BEGIN_SRC haskell
-worker t = Attr (histo h term) _
+worker t = Attr (histo h t) _
 #+END_SRC
 
 The second field's construction is more clever: we unwrap ~term~ with the ~out~ function, which gives us an ~f (Term f)~ out of a ~Term f~. Since we don't know exactly what type ~f~ is yet, we can't extract the contained ~Term f~---but we can operate on it, with ~fmap~, provided by the ~Functor~ constraint. So, to go from an ~f (Term f)~ to an ~f (Attr f a)~, we need a function of type ~Term f -> Attr f a~... hang on, that's just ~worker~ itself!
 
 #+BEGIN_SRC haskell
-worker t = Attr (histo h term) (fmap worker (out t))
+worker t = Attr (histo h t) (fmap worker (out t))
 #+END_SRC
 
 This is the heart of ~histo~'s elegance: it's 'doubly recursive', in that its ~worker~ function invokes both ~histo~ and ~worker~ itself.
@@ -356,7 +356,7 @@ futu :: Functor f => CVCoalgebra f a -> a -> Term f
 futu f = In <<< fmap _worker <<< f
 #+END_SRC
 
-#+RESULTS 
+#+RESULTS
 : /Users/patrick/src/morphisms/src/Main.hs:28:32: error:
 :    • Found hole: ‘_worker’ with type :: CoAttr f a -> Term f
 
@@ -372,11 +372,11 @@ futu f = In <<< fmap worker <<< f where
                                            -- unfolds later on.
 #+END_SRC
 
-When we encounter a plain ~Continue~ value, we continue recursing into it, perpetuating the unfold operation. When we encounter a ~Stop~ value, we run one more iteration on the top layer of the in-progress fold (transforming its children from ~Coattr f a~ values into ~Term f~ values by recursively invoking ~worker~), then wrap the whole item up with an ~In~ constructor and return a final value. The product of this nested invocation of ~worker~ is then similarly passed to the ~In~ constructor to wrap it up in a fixpoint, then returned as the final output value of ~futu~.
+When we encounter a plain ~Automatic~ value, we continue recursing into it, perpetuating the unfold operation. When we encounter a ~Stop~ value, we run one more iteration on the top layer of the in-progress fold (transforming its children from ~Coattr f a~ values into ~Term f~ values by recursively invoking ~worker~), then wrap the whole item up with an ~In~ constructor and return a final value. The product of this nested invocation of ~worker~ is then similarly passed to the ~In~ constructor to wrap it up in a fixpoint, then returned as the final output value of ~futu~.
 
 What differentiates this from ~apo~---which, if you recall, used an ~Either~ type to determine whether or not to continue the unfold---is that we can specify, /in each field of the functor f/, whether we want to continue the unfold or not. ~apo~ gave us a binary switch---either stop the unfold with a ~Left~ or keep going with a ~Right~. ~futu~, by contrast, lets us build out as many layers at a time as we desire, giving us the freedom to manually specify the shape of the structure or relegate its shape to future invocations of the unfold.
 
-This is an interesting way to encode unfolds! A CV-coalgebra that always returns a ~Continue~ value will loop infinitely, such as the unfold that generates all natural numbers. This means that we can tell, visually, whether our unfold is infinite or terminating.
+This is an interesting way to encode unfolds! A CV-coalgebra that always returns an ~Automatic~ value will loop infinitely, such as the unfold that generates all natural numbers. This means that we can tell, visually, whether our unfold is infinite or terminating.
 
 "But Patrick," you might say, "this looks like a cellular automaton." And you would be right---CV-coalgebras describe tree automata. And in turn, coalgebras describe finite-state automata, and R-coalgebras describe stream automata. We'll use this fact to define an example CV-coalgebra, one that grows[fn:9] random plant life.
 
@@ -446,10 +446,10 @@ sow seed =
   in case (height seed) of
 #+END_SRC
 
-Since we'll start with a height value of 0, we'll begin by generating a root (rule 1). Because we want to immediately continue onwards with the unfold, we pass a ~Continue~ into this ~Root~, giving it the subsequent seed (so that we get a new RNG value).
+Since we'll start with a height value of 0, we'll begin by generating a root (rule 1). Because we want to immediately continue onwards with the unfold, we pass an ~Automatic~ into this ~Root~, giving it the subsequent seed (so that we get a new RNG value).
 
 #+BEGIN_SRC haskell
-   0 -> Root (Continue next)
+   0 -> Root (Automatic next)
 #+END_SRC
 
 Rule 2 means that we must cap the height of the plant at 10. So let's do that:
@@ -470,24 +470,24 @@ If the action is to ~Flower~, then we again return a ~Bloom~.
       Flower -> Bloom
 #+END_SRC
 
-If it's to grow ~Upwards~, then we return a ~Stalk~, with a contained ~Continue~ value to continue our fold at the top of that ~Stalk~:
+If it's to grow ~Upwards~, then we return a ~Stalk~, with a contained ~Automatic~ value to continue our fold at the top of that ~Stalk~:
 
 #+BEGIN_SRC haskell
-      Upwards -> Stalk (Continue next)
+      Upwards -> Stalk (Automatic next)
 #+END_SRC
 
-And now we handle the ~Branch~ case. Our rules dictate that one of the branches will stop immediately, and the other two will continue, after a given length of ~Stalk~. So we return a ~Fork~ with one ~Stop~ and two ~Continues~.
+And now we handle the ~Branch~ case. Our rules dictate that one of the branches will stop immediately, and the other two will continue, after a given length of ~Stalk~. So we return a ~Fork~ with one ~Stop~ and two ~Automatics~.
 
 #+BEGIN_SRC haskell
       Branch  -> Fork -- grow a stalk then continue the fold
-                     (Stop (Stalk (Continue next)))
+                     (Stop (Stalk (Automatic next)))
                      -- halt immediately
                      (Stop Bloom)
                       -- again, grow a stalk and continue
-                     (Stop (Stalk (Continue next)))
+                     (Stop (Stalk (Automatic next)))
 #+END_SRC
 
-Note how, even though we specify the construction of a ~Stalk~ in the first and third slots, we allow the fold to ~Continue~ afterwards. This is the power of the futumorphism: we can choose the future of our folds, layer by layer. This is not possible with an anamorphism or apomorphism.
+Note how, even though we specify the construction of a ~Stalk~ in the first and third slots, we allow the fold to continue in an ~Automatic~ fashion afterwards. This is the power of the futumorphism: we can choose the future of our folds, layer by layer. This is not possible with an anamorphism or apomorphism.
 
 Here's our full ~sow~ function, rewritten slightly to use one ~case~ statement:
 
@@ -495,13 +495,13 @@ Here's our full ~sow~ function, rewritten slightly to use one ~case~ statement:
 sow seed =
   let (action, left, right) = grow seed
   in case (action, height seed) of
-    (_, 0)       -> Root (Continue left)
+    (_, 0)       -> Root (Automatic left)
     (_, 10)      -> Bloom
     (Flower, _)  -> Bloom
-    (Upwards, _) -> Stalk (Continue right)
-    (Branch, _)  -> Fork (Manual (Stalk (Continue left)))
+    (Upwards, _) -> Stalk (Automatic right)
+    (Branch, _)  -> Fork (Manual (Stalk (Automatic left)))
                          (Manual Bloom)
-                         (Manual (Stalk (Continue right)))
+                         (Manual (Stalk (Automatic right)))
 #+END_SRC
 
 This is pretty remarkable. We've encoded a complex set of rules, one that involves both nondeterminism and strict layout requirements, into one CV-coalgebra, and it took just eleven lines of code. No mutable state is involved, no manual accumulation is required---the entire representation of this automaton can be reduced to one pure function.
@@ -547,10 +547,10 @@ One final detail: just as we can use an apomorphism to express an anamorphism, w
 
 #+BEGIN_SRC haskell
 ana :: (Functor f) => Coalgebra f a -> a -> Term f
-ana f = futu (fmap Continue <<< f)
+ana f = futu (fmap Automatic <<< f)
 
 apo :: Functor f => RCoalgebra f a -> a -> Term f
-apo f = futu (fmap (either termToCoattr Continue) <<< f)
+apo f = futu (fmap (either termToCoattr Automatic) <<< f)
   where termToCoattr = Manual <<< fmap termToCoattr <<< out
 #+END_SRC
 
