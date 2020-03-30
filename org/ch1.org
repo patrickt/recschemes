@@ -216,7 +216,7 @@ out (In t) = t
 It's illuminating to substitute =Expr= in for the type variable =f= in this equation, in order to see what it looks like to construct and deconstruct the fixed-point of an =Expr= value. Using GHC's =TypeApplications= extension to set the value =f= equal to =ExprF=, let's ask GHCi the type signature of =In= over =ExprF= values.
 
 #+BEGIN_SRC haskell :results output :exports both
-:t In @ExprF :: ExprF (Term ExprF) -> Term ExprF
+:t In @ExprF
 #+END_SRC
 
 #+RESULTS:
@@ -256,7 +256,10 @@ Consider the notion of the bottom-up traversal: specifically, the following algo
 3. Repack the term.
 4. Apply ƒ to it.
 
-We have the tools to express each step of this procedure---let's call it =bottomUp=.
+We have the tools to express each step of this procedure---let's call it =bottomUp=. Given a function =fn= mapping from =Term= to =Term=, we'll unpack the =Term= with the =out= function, recursively traverse each child of the unpacked term with =fmap (bottomUp fn)=, repack the term with the =In= constructor, and then simply apply =fn= to the result. The =fmap bottomUp= call does all the heavy lifting in this function: it captures the act of recursing into each child (if any) of a given functor.
+
+Rather than naming both the =fn= function parameter and the =Term= parameter, I'm going to define =bottomUp= using combinators to join these four invocations---=out=, =fmap bottomUp=, =In=, and =fn=. Namely, I'm going to use the =>>>= operator, defined in [[http://hackage.haskell.org/package/base-4.6.0.1/docs/Control-Arrow.html][=Control.Arrow=]], for left-to-right function composition, =f >>> g x= is equal to =g(f(x))=. Though this style is a bit unconventional---the right-to-left function composition operator, =.=, is more common---I've chosen to do this because it's a useful visual indicator of the order in which functions are invoked. (This order will become important later.)
+
 
 #+BEGIN_SRC haskell :tangle ../src/Part1.hs
 bottomUp :: Functor a => (Term a -> Term a) -> Term a -> Term a
@@ -277,10 +280,6 @@ flattenTerm other = other       -- do nothing otherwise
 flatten'' :: Expr' -> Expr'
 flatten'' = bottomUp flattenTerm
 #+END_SRC
-
-Given a function =fn= mapping from =Term= to =Term=, we'll unpack the =Term= with the =out= function, recursively traverse each child of the unpacked term with =fmap (bottomUp fn)=, repack the term with the =In= constructor, and then simply apply =fn= to the result. The =fmap bottomUp= call does all the heavy lifting in this function: it captures the act of recursing into each child (if any) of a given functor.
-
-Rather than naming both the =fn= function parameter and the =Term= parameter, I'm going to define =bottomUp= using combinators to join these four invocations---=out=, =fmap bottomUp=, =In=, and =fn=. Namely, I'm going to use the =>>>= operator, defined in [[http://hackage.haskell.org/package/base-4.6.0.1/docs/Control-Arrow.html][=Control.Arrow=]], for left-to-right function composition, =f >>> g x= is equal to =g(f(x))=. Though this style is a bit unconventional---the right-to-left function composition operator, =.=, is more common---I've chosen to do this because it's a useful visual indicator of the order in which functions are invoked. (This order will become important later.)
 
 Though our previous definition of =flatten= that used =apply= to represent its recursion was concise, this is even more elegant: our =bottomUp= recusion scheme lets us factor out the recursive parts of this definition entirely. We can focus on the relevant behavior of the flattening function---namely, that it removes all =Paren= nodes---and define it in two simple clauses. In addition, recursively invoking this function with =bottomUp flattenTerm= is clearer than our prior definitions in that we have made the bottom-up nature of this traversal explicit. This is really a remarkable departure from our previous definition of =flatten=---it's hard to imagine how it could be made shorter.
 
