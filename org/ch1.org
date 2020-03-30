@@ -121,9 +121,7 @@ flatten' (Paren e) = flatten' e
 flatten' x = applyExpr flatten' x
 #+END_SRC
 
-This function just got far, far easier to write and maintain. The =apply= function is now responsible for both the base case and the simple recursive case of flattening an expression: all we have to do is define the interesting case, i.e. its handling of =Paren= nodes. Awesome.
-
-But let's not get ahead of ourselves. We haven't really prevented any boilerplate or eliminated room for bugs here: =applyExpr= just contains and isolates the boilerplate, and we'd need to write a new =apply= function for each and every new type we define. A sufficiently smart compiler could write them for us. And GHC, being a very smart compiler, can. First, though, we'll have to make this =Expr= data type a little bit more general.
+This function just got far, far easier to write and maintain. The =apply= function is now responsible for both the base case and the simple recursive case of flattening an expression: all we have to do is define the interesting case, i.e. its handling of =Paren= nodes. Awesome---but's not get ahead of ourselves. We haven't really prevented any boilerplate or eliminated room for bugs here: =applyExpr= just contains and isolates the boilerplate, and we'd need to write a new =apply= function for every new type we define. A sufficiently smart compiler could write them for us. And GHC, being a very smart compiler, can. First, though, we'll have to make this =Expr= data type a little bit more general.
 
 * Parameterizing Our Types
 
@@ -292,9 +290,7 @@ flatten'' :: Expr' -> Expr'
 flatten'' = bottomUp flattenTerm
 #+END_SRC
 
-Though our previous definition of =flatten= that used =apply= to represent its recursion was concise, this is even more elegant: our =bottomUp= recusion scheme lets us factor out the recursive parts of this definition entirely. We can focus on the relevant behavior of the flattening function---namely, that it removes all =Paren= nodes---and define it in two simple clauses. In addition, recursively invoking this function with =bottomUp flattenTerm= is clearer than our prior definitions in that we have made the bottom-up nature of this traversal explicit. This is really a remarkable departure from our previous definition of =flatten=---it's hard to imagine how it could be made shorter.
-
-But let's not rest on our laurels. Let's consider the steps involved with writing a top-down traversal of a =Term=, the obvious analogue to our bottom-up traversal:
+Though our previous definition of =flatten= that used =apply= to represent its recursion was concise, this is even more elegant: our =bottomUp= recusion scheme lets us factor out the recursive parts of this definition entirely. We can focus on the relevant behavior of the flattening function---namely, that it removes all =Paren= nodes---and define it in two simple clauses. In addition, recursively invoking this function with =bottomUp flattenTerm= is clearer than our prior definitions in that we have made the bottom-up nature of this traversal explicit. This is really a remarkable departure from our previous definition of =flatten=---it's hard to imagine how it could be made shorter. But let's not rest on our laurels: let's consider the steps involved with writing a top-down traversal of a =Term=, the obvious analogue to our bottom-up traversal:
 
 To traverse a Term top-down with a function ƒ, we:
 
@@ -357,7 +353,7 @@ spec = do
 
 #+END_SRC
 
-[fn:notation] Rather than tying /Bananas, Lenses, Envelopes and Barbed Wire/ to any particular programming language, Meijer et. al used notation derived from [[http://en.wikipedia.org/wiki/Bird–Meertens_Formalism][Bird-Meertens formalism]], a calculus of program construction based on recursion schemes. Meijer's Ph.D. thesis discussed compiler specifications using this notation, which was also known as Squiggol, after its 'squiggly' notation. Though this notation is well-specified, its syntactic constructions, featuring elements such as "banana brackets" and "concave lenses", is somewhat abstruse.
+[fn:notation] Rather than tying /Bananas, Lenses, Envelopes and Barbed Wire/ to any particular programming language, Meijer et al. used notation derived from [[http://en.wikipedia.org/wiki/Bird–Meertens_Formalism][Bird-Meertens formalism]], a calculus of program construction based on recursion schemes. Meijer's Ph.D. thesis discussed compiler specifications using this notation, which was also known as Squiggol, after its 'squiggly' notation. Though this notation is well-specified, its syntactic constructions, featuring elements such as "banana brackets" and "concave lenses", is somewhat abstruse.
 
 [fn:fixed] A complete discussion of the beauty and notability of fixed-point combinators is beyond the scope of this article: for such explorations, please refer to Raymond Smullyan's wonderful [[http://www.amazon.com/To-Mock-Mockingbird-Other-Puzzles/dp/0192801422][/To Mock a Mockingbird/]] or Reginald Braithwaite's [[https://leanpub.com/combinators][Kestrels, Quirky Birds, and Hopeless Egocentricity]].
 
