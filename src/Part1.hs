@@ -2,7 +2,16 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Part1 where
+module Part1
+  ( Expr (..)
+  , Lit (..)
+  , Term (..)
+  , ExprF (..)
+  , Expr'
+  , flatten
+  , flatten'
+  , flatten''
+  ) where
 
 -- Check Part1Spec.hs for test cases that verify correctness.
 
@@ -65,8 +74,8 @@ applyExpr f (Unary op arg) = Unary op (f arg)
 applyExpr f (Binary l op r) = Binary (f l) op (f r)
 
 flatten' :: Expr -> Expr
-flatten' (Paren e) = flatten e
-flatten' x = applyExpr flatten x
+flatten' (Paren e) = flatten' e
+flatten' x = applyExpr flatten' x
 
 data ExprF a
   = IndexF a a

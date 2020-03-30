@@ -9,9 +9,9 @@
 #+PANDOC_OPTIONS: wrap:none atx-headers:t
 #+PANDOC_EXTENSIONS: markdown-smart+footnotes-fenced_code_attributes
 
-On the [[http://patrickthomson.ghost.io/an-introduction-to-recursion-schemes/][last episode]] of this very-infrequently-updated analysis of /[[http://eprints.eemcs.utwente.nl/7281/01/db-utwente-40501F46.pdf][Programming with Bananas, Lenses, Envelopes, and Barbed Wire]]/, we took a look at how to represent and traverse nested structures. This time, we'll start getting into the meat of the paper[fn:1]. We'll define four simple recursion schemes, explore how they relate to each other, and I'll offer up some example sitations (both real-world and contrived) of situations that admit the use of recursion schemes.
+On the [[http://patrickthomson.ghost.io/an-introduction-to-recursion-schemes/][last episode]] of this very-infrequently-updated analysis of /[[http://eprints.eemcs.utwente.nl/7281/01/db-utwente-40501F46.pdf][Programming with Bananas, Lenses, Envelopes, and Barbed Wire]]/, we took a look at how to represent and traverse nested structures. This time, we'll start getting into the meat of the paper[fn:1]. We'll define four simple recursion schemes, explore how they relate to each other, and I'll offer up some example situations (both real-world and contrived) of situations that admit the use of recursion schemes.
 
-We'll start by defining a simple syntax tree, as we did [[http://patrickthomson.ghost.io/an-introduction-to-recursion-schemes/][last time]].
+We'll start by defining a simple syntax tree, as we did last time.
 
 #+BEGIN_SRC haskell :tangle ../src/Part2.hs :exports none
 {-# LANGUAGE DeriveFunctor     #-}
@@ -64,7 +64,7 @@ Now we represent arbitrarily-nestable =Expr= values with values of type =Term Ex
 ten, add, call :: Term Expr
 ten  = In (Literal { intVal = 10 })
 add  = In (Ident { name = "add" })
-call = In (Call { func = add, args = [ten, ten]})---add(10, 10)
+call = In (Call { func = add, args = [ten, ten]}) --add(10, 10)
 #+END_SRC
 
 Using the =>>>= operator for left-to-right function composition, we expressed a generalized bottom-up traversal capable of operating on any data type that implements the [[http://en.wikibooks.org/wiki/Haskell/The_Functor_class][=Functor=]] typeclass.
@@ -128,7 +128,7 @@ countNodes (Paren arg)           = arg + 1
 
 And our base case for this transformation falls out easily: =Literal= and =Ident= have no subexpressions, so they just return 1:
 
-#+BEGIN_SRC haskell
+#+BEGIN_SRC haskell :tangle ../src/Part2.hs
 countNodes (Literal _) = 1
 countNodes (Ident   _) = 1
 #+END_SRC
@@ -185,7 +185,7 @@ cata f = out >>> fmap (cata f) >>> f
 
 Again, though the term "catamorphism" may seem needlessly arcane, its etymology both simplifies and clarifies its purpose: the "cata" in "catamorphism" is the same "cata" in "catastrophe", "catabolism", and "catalyst"---from the Greek κατα, meaning "downwards", "into", or "collapse". Just as a catastophe is an unlucky event that tears things down, and catabolism is the collapse of muscle fibers, a catamorphism uses an algebra (a reunion) to collapse a container of values into a single value.
 
-If you're reminded of the =fold= operation on lists, you're on the right track: a list fold (specifically =foldr=[fn:5]) is merely a catamorphism limited to operate on lists (the =[]= type, the archetypal =Functor=). That's the essence of catamorphisms: they're /generalized fold operations/, applicable to /any/ functor---not just lists---all without having to write a line of boilerplate traversals and without sacrificing a mote of type safety.
+If you're reminded of the =fold= operation on lists, pat yourself on the back: a list fold (specifically =foldr=[fn:5]) is merely a catamorphism limited to operate on lists (the =[]= type, the archetypal =Functor=). That's the essence of catamorphisms: they're /generalized fold operations/, applicable to /any/ functor---not just lists---all without having to write a line of boilerplate traversals and without sacrificing a mote of type safety.
 
 Another excellent example of catamorphisms is pretty-printers for trees. If the representation you require of a tree type can be expressed in a purely bottom-up manner---that is to say, it requires no information about the original structure of the tree being transformed---you can express pretty-printing functions in a truly wonderfully concise manner. (Spoiler alert: later on, we'll figure out how to do this even when you need access to the original structure.) We can describe a pretty-printing algebra from =Expr= to =Doc=, an abstract document type provided by the [[https://hackage.haskell.org/package/pretty-1.1.1.0/docs/Text-PrettyPrint.html][Text.PrettyPrint]] module.
 
@@ -212,11 +212,16 @@ prettyPrint (Ident s) = P.text s
 And our inductively-defined cases are beautifully clutter-free:
 
 #+BEGIN_SRC haskell :tangle ../src/Part2.hs
-prettyPrint (Call f as)     = f <> P.parens (mconcat (P.punctuate "," as))  ---f(a,b...)
-prettyPrint (Index it idx)  = it <> P.brackets idx                ---a[b]
-prettyPrint (Unary op it)   = (P.text op) <> it                   ---op x
-prettyPrint (Binary l op r) = l <> (P.text op) <> r               ---lhs op rhs
-prettyPrint (Paren exp)     = P.parens exp                        ---(op)
+-- f(a,b...)
+prettyPrint (Call f as)     = f <> P.parens (mconcat (P.punctuate "," as))
+-- a[b]
+prettyPrint (Index it idx)  = it <> P.brackets idx
+-- ab
+prettyPrint (Unary op it)   = (P.text op) <> it
+-- a op b
+prettyPrint (Binary l op r) = l <> (P.text op) <> r
+-- (a)
+prettyPrint (Paren exp)     = P.parens exp
 #+END_SRC
 
 Applying =prettyPrint= to our example =call= datum should yield a nice representation:
@@ -262,13 +267,13 @@ Catamorphisms also /compose/: given an algebra over a given type
 cata (f >>> In) >>> cata g ≍ cata (f >>> g)
 #+END_SRC
 
-That is to say, the result of composing two separate catamorphisms is equivalent to a single catamorphism using the combination of the contained algebras. This is amazing, almost magically so: the composition law allows us to turn two separate calls to =cata= into one.
+That is to say, the result of composing two separate catamorphisms is equivalent to a single catamorphism using the combination of the contained algebras. This is amazing, almost magically so: the composition law all
 
 [fn:7] The ~≍~ symbol is Unicode's ~EQUIVALENT TO~ glyph, and is read as such. This wouldn't be valid Haskell syntax, unless you defined a ~≍~ function of your own.
 
 ** Anamorphisms
 
-In the last post, we defined a corresponding topDown method, the opposite of bottomUp. Furthermore, we did so by “reversing the arrows” in bottomUp: we changed the left-to-right composition operator ~>>>~ to its flipped ~<<<~ (which is equivalent to the ~.~ operator), and we flipped around all invocations of ~out~ to ~In~ and ~In~ to ~out~.
+In the last post, we defined a corresponding ~topDown~ method, the opposite of ~bottomUp~. Furthermore, we did so by “reversing the arrows” in bottomUp: we changed the left-to-right composition operator ~>>>~ to its flipped ~<<<~ (which is equivalent to the ~.~ operator), and we flipped around all invocations of ~out~ to ~In~ and ~In~ to ~out~.
 
 #+BEGIN_SRC haskell
 bottomUp f = out >>> fmap (bottomUp f) >>> In  >>> f
@@ -284,7 +289,7 @@ By applying this “reversing the arrows” trick, we managed to express the dua
 reversed f = In <<< fmap (what f) <<< f
 #+END_SRC
 
-You’re damn right it does. What’s its type signature?
+It does! What’s its type signature?
 
 #+BEGIN_SRC haskell :results output :exports both
 :t reversed
@@ -328,7 +333,7 @@ The case for ~0~ is our base case: the unfold process stops there, because ~Lite
 
 [fn:8] /Anabolic/ steroids build muscle mass, /anagenesis/ is the development (the building, in a sense) of new species, &c &c.
 
-** Was That Really So Hard?
+** Acknowledgements
 
 Thanks to Colin Barrett and Rob Rix for reading drafts of this essay, and thanks to Rob for pushing me to publish it.
 
@@ -362,6 +367,6 @@ spec = do
 
 [fn:4] The purists in the audience are no doubt cringing at my use of "container" to describe the capabilities of a =Functor=. As the Typeclassopedia points out, The =Functor= class is broader than just the concept of containing values: the best phrase for a =Functor f => f a= is "a value =a= within some computational context =f=. That doesn't exactly roll off the tongue, though, so I will be using "container" throughout. Sorry, purists. (But I already lost the purists with my hand-wavy treatment of least-fixed-points and codata last time.)
 
-[fn:5] Digression: Some of you may be wondering "if the catamorphism applied to lists is equivalent to =foldr=, what's the analogous construct for =foldl=?" This is somewhat of a trick question, as =foldl= can be expressed in terms of =foldr=, as [[http://okmij.org/ftp/Haskell/AlgorithmsH1.html#foldl][Oleg demonstrates]].
+[fn:5] Digression: Some of you may be wondering "if the catamorphism applied to lists is equivalent to =foldr=, what's the analogous construct for =foldl=?" It's not necessary: =foldl= can be expressed in terms of =foldr=, as [[http://okmij.org/ftp/Haskell/AlgorithmsH1.html#foldl][Oleg demonstrates]].
 
 [fn:6] This is assuming that we're working in a purely functional language (and that nobody's calling out to =unsafePerformIO=).
