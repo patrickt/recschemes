@@ -3,3 +3,4 @@
 .DS_Store
 *.html
 dist-newstyle
+cabal.project.local

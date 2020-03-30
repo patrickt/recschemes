@@ -1,7 +1,7 @@
 module Part2Spec (spec) where
 
-import           Part2
-import           Test.Hspec
+import Part2
+import Test.Hspec
 
 spec :: Spec
 spec = do
@@ -10,5 +10,5 @@ spec = do
       cata countNodes call `shouldBe` 4
 
   describe "prettyPrint" $
-    it "should yield add(10, 10)" $
-      show (cata prettyPrint call) `shouldBe` "add(10, 10)"
+    it "should yield add(10,10)" $
+      show (cata prettyPrint call) `shouldBe` "add(10,10)"
