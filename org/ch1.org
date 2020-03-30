@@ -9,11 +9,11 @@
 #+PANDOC_OPTIONS: wrap:none atx-headers:t
 #+PANDOC_EXTENSIONS: markdown-smart+footnotes-fenced_code_attributes
 
-In 1991, Erik Meijer, Maarten Fokkinga, and Ross Paterson published their now-classic paper /[[https://eprints.eemcs.utwente.nl/7281/01/db-utwente-40501F46.pdf][Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire]]/. Though this paper isn't widely known outside of the functional programming community, its contributions are astonishing: the authors use category theory to express a set of simple, composable combinators, called recursion schemes, that automate the process of traversing and recursing through nested data structures. Though recursion schemes predate Meijer et. al's work, this paper brings the enormous abstractive power of category theory to bear on the subject of traversing data structures---it's a magnificent example of how category-theoretical concepts can bring both rigor and simplicity to day-to-day programming tasks.
+In 1991, Erik Meijer, Maarten Fokkinga, and Ross Paterson published their now-classic paper /[[https://eprints.eemcs.utwente.nl/7281/01/db-utwente-40501F46.pdf][Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire]]/. Though this paper isn't widely known outside of the functional programming community, its contributions are astonishing: the authors use category theory to express a set of simple, composable combinators, called /recursion schemes/, that automate the process of traversing and recursing through nested data structures. Though recursion schemes predate Meijer et. al's work, this paper brings the enormous abstractive power of category theory to bear on the subject of traversing data structures---it's a magnificent example of how abstract, general concepts can bring both rigor and simplicity to day-to-day programming tasks.
 
 Because nested structures appear in almost every problem domain and programming environment, from databases to 3D graphics to filesystems, the act of iterating through these structures is common, so common that most programmers barely notice when they're doing it. As such, generalizing the act of recursive traversals provides immediate real-world benefits: our new generalized traversal can replace a host of type-specific traversal functions. In addition, by decoupling /how/ a function recurses over data from /what/ the function actually does, we reduce cognitive overhead and can focus entirely on the core behavior of our recursive functions. No matter the structures in question—lists, directory hierarchies, control flow graphs, database records—recursion schemes bring us an orderly and predictable way to traverse them. In addition, recursion schemes aren't a product of any one programming language or environment—you can express recursion schemes in any language with first-class functions. Clojure, for example, uses them to power its [[http://richhickey.github.io/clojure/clojure.walk-api.html][=clojure.walk=]] API for generically traversing s-expressions and maps.
 
-Meijer et. al go so far as to condemn functional programming without recursion schemes as morally equivalent to imperative programming with =goto=. While comparisons to Djikstra's [[https://homepages.cwi.nl/~storm/teaching/reader/Dijkstra68.pdf][infamous letter to the ACM]] are often inane, the analogy is apt: just as using =while= and =for= loops rather than `goto` brings structure and harmony to imperative control flow, the use of recursion schemes over hand-written brings similar structure to recursive computations. This insight is so important that I'll repeat it: /recursion schemes are just as essential to idiomatic functional programming as =for= and =while= are to idiomatic imperative programming/.
+Meijer et. al go so far as to condemn functional programming without recursion schemes as morally equivalent to imperative programming with =goto=. While comparisons to Djikstra's [[https://homepages.cwi.nl/~storm/teaching/reader/Dijkstra68.pdf][infamous letter to the ACM]] are often inane, the analogy is apt: just as using =while= and =for= loops rather than =goto= brings structure and harmony to imperative control flow, the use of recursion schemes over hand-written brings similar structure to recursive computations. This insight is so important that I'll repeat it: /recursion schemes are just as essential to idiomatic functional programming as =for= and =while= are to idiomatic imperative programming/.
 
 I've chosen to express the ideas in /Bananas, Lenses, Envelopes and Barbed Wire/ in Haskell, though the paper was written years before Haskell came to prominence[fn:notation]. If you don't know Haskell very well, *don't panic*: you don't need to be a Haskell whiz to understand the ideas presented here. I assume only a basic familiarity with [[http://cheatsheet.codeslower.com/CheatSheet.pdf][Haskell syntax]] and the use of [[http://learnyouahaskell.com/making-our-own-types-and-typeclasses][algebraic data types]]. I'm going to rely on a few idioms to better illustrate the concepts underlying recursion schemes---when I do, I will explain what happens behind the scenes. If you're wholly unfamiliar with Haskell, you may want to dip into the first few chapters of [[http://haskellbook.com/][Haskell Programming from First Principles]].
 
@@ -138,7 +138,7 @@ data ExprF a
   deriving (Show, Eq)
 #+END_SRC
 
-This new definition of an expression differs from its predecessor in that we've added a type variable =a= and replaced all recursive occurrences of the =Expr= type with it. (By convention, we append the suffix =-F= to the type name and constructors of expressions in this formulation; the reason for this will become clear in a moment. Put another way, we have /parameterized/ this type in terms of its subexpressions. As such, we have to change our definition of =applyExpr=: the function we apply to each subexpression can no longer be of type =Expr -> Expr=, but must become =a -> a=: indeed, we can make it =a -> b=, letting the function change the type of an =Expr='s subexpressions if necessary.
+This new definition of an expression differs from its predecessor in that we've added a type variable =a= and replaced all recursive occurrences of the =Expr= type with it. (By convention, we append the suffix =-F= to the type name and constructors of expressions in this formulation; the reason for this will become clear in a moment.) Put another way, we have /parameterized/ this type in terms of its subexpressions. As such, we have to change our definition of =applyExpr=: the function we apply to each subexpression can no longer be of type =Expr -> Expr=, but must become =a -> a=: indeed, we can make it =a -> b=, letting the function change the type of an =Expr='s subexpressions if necessary.
 
 #+BEGIN_SRC haskell
 apply :: (a -> b) -> ExprF a -> ExprF b
@@ -195,6 +195,15 @@ Consider the Y-combinator. Given a function f that takes one argument, =y(f)= re
 y f = f (f (f (f ...)))
 #+END_SRC
 
+In Haskell, we call this combinator ~fix~. We can use ~fix~ to write a recursive function without referring to the function in question recursively: the parameter passed to this function represents itself, and we can use it to recur:
+
+#+BEGIN_SRC haskell
+countDown :: Natural -> IO ()
+countDown = fix $ \recur n -> do
+  putStrLn (show n)
+  when (n /= 0) (recur (n - 1)) -- recurring, without mentioning 'countDown'
+#+END_SRC
+
 The sharp-eyed will have noticed that the expansion of =y(f)= is very similar to our =NestedExpr= type above. If we have a Y-combinator embedded entirely /in the type system/, we can describe the repeated application of =Expr= to itself, in a manner identical to how the value-level Y-combinator operates on functions, and in turn we can describe an =Expr a= where =a= represents an infinite stream of nested =Expr= values.
 
 #+BEGIN_SRC haskell
@@ -203,7 +212,7 @@ type Y t = t (t (t (t (t ...))))
 
 This general concept[fn:fixed] is known as 'fixed-point': we say that =y(f)= is the fixed point (or fixpoint) of the =f= function, and that =Y Expr= is the /fixed point of the =Expr= functor/. And here's the kicker---we can build a Y-combinator that works /in the type system/ too, and that's how we will express the self-similar nature of an =Expr='s subexpressions.
 
-We need a data type =Y= that, when given another type =f=, wraps an =f= whose children are of type =(Y f)=. Let's call it =Term=, and let's call its constructor =In=, representing the fact that we are stuffing one level of recursion into a fixed form. In addition, we'll define an =out= function that unwraps a =Term=.
+We need a data type =Y= that, when given another type =f=, wraps an =f= whose children are of type =(Y f)=. Let's call it =Term=[fn:1], and let's call its constructor =In=, representing the fact that we are stuffing one level of recursion into a fixed form. In addition, we'll define an =out= function that unwraps a =Term=.
 
 #+BEGIN_SRC haskell
 data Term f = In (f (Term f))
@@ -244,6 +253,8 @@ deriving instance (Show (f (Term f))) => Show (Term f)
 #+END_SRC
 
 From these definitions, we can see that, given a =Term Expr=, we can use the =out= function to convert it to an =Expr= the subexpressions of which are, in turn =Term Expr= values. That means that we can unwrap a =Term Expr= into an /arbitrarily-nested/ =Expr= through successive applications of =out=: our =Term Expr= can expand into an =Expr (Term Expr)=, which can expand into an =Expr (Expr (Term Expr))=, and so on and so forth. This style of defining recursive types using fixed-points of functors is an example of /codata/. A full discussion of the theory behind codata (and the many different forms that codata can take) is, unfortunately, beyond the scope of this article; I recommend [[https://www.tac-tics.net/blog/data-vs-codata][this]] excellent introduction.
+
+[fn:1] Some recursion-schemes libraries call this type ~Fix~, reflecting its fixed-point nature (and providing an elegant symmetry with the value-level ~fix~ function).
 
 * Generic Traversals
 
