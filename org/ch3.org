@@ -65,7 +65,7 @@ cata fn =
 
 Catamorphisms are simple and elegant, but in many real-world use-cases they are insufficient. For example, though the function we pass to =cata= allows us to view the data we're transformating, it loses information about the original structure: in the case of pretty-printing, we only have access to the currently-printed tree (the =f Doc= for any fix): any information about the structure of the original =Term Expr= is lost, as it has already been pretty-printed.
 
-This would be a problem if you wanted to print, say, zero-argument functions in a different manner than other functions: you'd have to use ==== to examine the =Doc= type, then dispatch on the result to implement this different behavior. And your =Doc= type may omit an =Eq= instance, so ==== may not even be possible! (Besides, looking at the pretty-printed results to infer their inputs is clumsy at best and often inaccurate in the presence of hyphenation or spacing.)
+This would be a problem if you wanted to print, say, zero-argument functions in a different manner than other functions: you'd have to use ==== to examine the =Doc= type, then dispatch on the result to implement this different behavior. And your =Doc= type may omit an =Eq= instance, so ==== may not even be possible. (Besides, looking at the pretty-printed results to infer their inputs is clumsy at best and often inaccurate in the presence of hyphenation or spacing.)
 
 It would be ideal if our =Algebra= could, when examining an =Expr= node, have access both to its pretty-printed representation and its original representation as a =Term=---an =Algebra= that has access to the original, un-transformed datum, represented as its fixed-point =Term=. That is to say, whereas =Algebra= is a function from a container =f= of =a=, we want a function from container that holds /both/ a =Term f= and its corresponding =a=. Rather than using a function with two arguments, we'll bundle these two arguments together in a tuple (for reasons that will become clear later).
 
@@ -143,7 +143,7 @@ Beautiful, no? This is one of the really appealing things about recursion scheme
    :CUSTOM_ID: exempli-gratia
    :END:
 
-The identity function =id=, by definition, returns its argument unchanged: =id(x)= can be replaced with =x= in every case. Let's imagine a pretty-printer that, for some reason[fn:3], performs this optimization step on its output.
+The identity function =id=, by definition, returns its argument unchanged: =id x= can be replaced with =x= in every case. Let's imagine a pretty-printer that, for some reason[fn:3], performs this optimization step on its output.
 
 To do this with a simple catamorphism, we'd need to check every function-call's pretty-printed name to determine whether it is =id=, then return the argument unchanged---and, as I mentioned above, our pretty-printed =Doc= representation shouldn't even support an equality operation, so examining it is a no-go. However, we can do this easily with a paramorphism. In order to avoid having to write a bunch of tuples, I'm going to use the second representation of R-algebras above (the ternary function), and I'm going to use the =Expr= syntax tree defined in previous installments.
 
@@ -215,7 +215,7 @@ And we defined the function argument that =ana= takes as a =Coalgebra=, seeing a
 #+BEGIN_SRC haskell
 type Coalgebra f a = a -> f a
 
-ana f :: (Functor f) => Coalgebra f a -> a -> Term f
+ana :: (Functor f) => Coalgebra f a -> a -> Term f
 #+END_SRC
 
 It stands to reason that we can define the dual of a paramorphism---a co-paramorphism. But, as always, we have a better name for this: the dual of a paramorphism is an /apomorphism/. Just as the ana- prefix is the opposite of the cata- prefix, so the para- prefix is the opposite of the apo- prefix. In this case, apo- comes from the Greek ἀπο, meaning "away from" or "separate", as in "apogee" (the moon being away from the earth) or "apostasy" (someone turning away from their beliefs).
@@ -234,7 +234,7 @@ Well, let's consider what a tuple is for. Given two arguments =big= and =pac=, a
 type RCoalgebra f a = a -> f (Either (Term f) a)
 #+END_SRC
 
-But what does this /mean/ when we're using apomorphisms in practice? Well, it allows us to /separate/ the flow of computation during our unfolds. If our R-coalgebra returns a =Left= value in which is contained a =Term=, the apomorphism will terminate and return the provided value. If it returns a =Right= value containing an =f a=, the unfold will continue onwards. This is cool! The ability to terminate during a corecursive iteration depending on the argument is a very useful property---and we need no imperative constructs such as =break= or (/shudder/) exceptions[fn:4].
+What does this /mean/ when we're using apomorphisms in practice? Well, it allows us to /separate/ the flow of computation during our unfolds. If our R-coalgebra returns a =Left= value in which is contained a =Term=, the apomorphism will terminate and return the provided value. If it returns a =Right= value containing an =f a=, the unfold will continue onwards. This is cool! The ability to terminate during a corecursive iteration depending on the argument is a tremendously useful property---and we need no imperative constructs such as =break= or =throw=.
 
 So, just as we expressed =ana= by reversing the arrows of =cata=, we can express =apo= by reversing the arrows of =para=:
 
@@ -243,7 +243,7 @@ para :: Functor f => RAlgebra' f a -> Term f -> a
 para f = out >>> fmap fanout >>> f where fanout = id &&& para f
 
 apo f :: Functor f => RCoalgebra f a -> a -> Term f
-apo f = In <<< fmap fanin <<< f where fanin = ???
+apo f = In <<< fmap fanin <<< f where fanin = _
 #+END_SRC
 
 It may not be immediately obvious how to implement =fanin=. But, when you reverse the arrows of the =fanout= definition above (I have omitted said reversal for brevity's sake), you'll discover that you yield a function that takes an =Either (Term f) a= and returns a =Term f=.
@@ -273,7 +273,7 @@ etymologies).
 
 I am indebted to Rob Rix, Colin Barrett, and Manuel Chakravarty for their input and suggestions regarding this post.
 
-/In part four, we explore [[https://blog.sumtypeofway.com/recursion-schemes-part-iv-time-is-of-the-essence/][histomorphisms and futumorphisms]]./
+/In part four, we explore [[https://blog.sumtypeofway.com/posts/recursion-schemes-part-4.html][histomorphisms and futumorphisms]]./
 
 [fn:1] Modern English tends to use "para" as a prefix meaning "pseudo"
        or "abnormal" (as in "parapsychology" or "paresthesia")---this is
