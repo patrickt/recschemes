@@ -60,9 +60,9 @@ prettyPrint (Call f as)     = f <> P.parens (mconcat (P.punctuate "," as))
 -- a[b]
 prettyPrint (Index it idx)  = it <> P.brackets idx
 -- ab
-prettyPrint (Unary op it)   = (P.text op) <> it
+prettyPrint (Unary op it)   = P.text op <> it
 -- a op b
-prettyPrint (Binary l op r) = l <> (P.text op) <> r
+prettyPrint (Binary l op r) = l <> P.text op <> r
 -- (a)
 prettyPrint (Paren exp)     = P.parens exp
 
