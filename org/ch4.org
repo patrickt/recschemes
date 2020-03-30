@@ -1,4 +1,4 @@
-Though we've only just begun our dive into /Bananas, Lenses, Envelopes, and Barbed Wire/, the next natural step in understanding recursion schemes brings us outside its purview. We must turn our attention to a paper written seven years later---/[[http://cs.ioc.ee/~tarmo/papers/inf99.pdf][Primitive(Co)Recursion and Course-of-Value (Co)Iteration, Categorically]]/, by Tarmo Uustalu and Varmo Vene. /Primitive (Co)Recursion/ explores and formalizes the definition of apomorphisms (introduced first by Meijer et. al, and which we discussed, briefly, in the [[http://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/][previous installment]]) and describes two new recursion schemes, the /histomorphism/ and the /futumorphism/.
+Though we've only just begun our dive into /Bananas, Lenses, Envelopes, and Barbed Wire/, the next natural step in understanding recursion schemes brings us outside its purview. We must turn our attention to a paper written seven years later---/[[http://cs.ioc.ee/~tarmo/papers/inf99.pdf][Primitive(Co)Recursion and Course-of-Value (Co)Iteration, Categorically]]/, by Tarmo Uustalu and Varmo Vene. /Primitive (Co)Recursion/ explores and formalizes the definition of apomorphisms (introduced first by Meijer et al., and which we discussed, briefly, in the [[https://blog.sumtypeofway.com/posts/recursion-schemes-part-3.html][previous installment]]) and describes two new recursion schemes, the /histomorphism/ and the /futumorphism/.
 
 /Primitive (Co)Recursion/ is a wonderful and illuminating paper, but it is dense in its concepts for those unfamiliar with category theory, and uses the semi-scrutable bracket syntax introduced by /Bananas/. But there's no need for alarm if category theory isn't your cup of tea: Haskell allows us, once again, to express elegantly the new recursion schemes defined in /Primitive (Co)Recursion/. Guided by Uustalu and Vene's work, we'll derive these two new recursion schemes and explore their ways in which they simplify complicated folds and unfolds. Though these new morphisms are, definition-wise, simple variations on paramorphisms and apomorphisms, in practice they provide surprising power and clarity, as Uustalu and Vene assert:
 
@@ -6,7 +6,7 @@ Though we've only just begun our dive into /Bananas, Lenses, Envelopes, and Barb
   [We] argue that even these schemes are helpful for a declaratively thinking programmer and program reasoner who loves languages of programming and program reasoning where programs and proofs of properties of programs are easy to write and read.
 #+END_QUOTE
 
-That sure sounds like us. Let's get going. This article is literate Haskell; you can find the source code [[https://github.com/patrickt/recschemes/blob/master/src/Part4.l][here]].
+That sure sounds like us. Let's get going. This article is literate Haskell; you can find the source code [[https://github.com/patrickt/recschemes/blob/master/src/Part4.hs][here]].
 
 #+BEGIN_SRC haskell :tangle ../src/Part4.hs :exports none
 {-# LANGUAGE StandaloneDeriving   #-}
@@ -58,7 +58,7 @@ cata :: (Functor f) => Algebra f a -> a -> Term f
 cata f = out >>> fmap (cata f) >>> f
 #+END_SRC
 
-But the catamorphism has its limits: as it is applied to each level of the structure, it can only examine the current carrier value from which it is building. Given the F-algebra ~f a -> a~, each of the structure's children---the ~a~ values contained in the ~f~ container---has already been transformed, thus losing information about the original structure. To remedy this, we introduced ~para~, the paramorphism, and an R-algebra to carry the original structure with the accumulator:
+However, the catamorphism has its limits: as it is applied to each level of the structure, it can only examine the current carrier value from which it is building. Given the F-algebra ~f a -> a~, each of the structure's children---the ~a~ values contained in the ~f~ container---has already been transformed, thus losing information about the original structure. To remedy this, we introduced ~para~, the paramorphism, and an R-algebra to carry the original structure with the accumulator:
 
 #+BEGIN_SRC haskell
 type RAlgebra f a = f (Term f, a) -> a
@@ -80,15 +80,15 @@ fib n = fib (n-1) + fib (n-2)
 
 We could express this function using a catamorphism---though one of the carrier values (~fib (n-1)~) would be preserved, as the accumulator of our fold, we would need another explicit recursive call to ~cata~ to determine the historical value of ~fib (n-2)~. This is a bummer, both in terms of efficiency---we're recalculating values we've already calculated---and in terms of beauty: a function so fundamental as ~fib~ deserves a better implementation, especially given the expressive power of recursion schemes.
 
-The imperative programmers among us will have a solution to this inefficiency: "iterate!", they will yell, or perhaps they will clamor "introduce a cache!" in a great and terrible voice. And it's true: we could compute ~fib~ with a for-loop or by memoizing the recursive call. But the former approach entails mutable state---a very big can of worms to open for such a simple problem---and the latter leaves us [[https://twitter.com/importantshock/status/241173326846898176][with two problems]]. Uustalu and Vene's histomorphism provides a way out: we will /preserve the history/ of the values our fold computes, so that further recursive calls to compute past values become unnecessary. This style of recursion is called /course-of-value recursion/, since we record the /values/ evaluated as our fold function /courses/ through the structure.
+The imperative programmers among us will have a solution to this inefficiency: "iterate!", they will yell, or perhaps they will clamor "introduce a cache!" in a great and terrible voice. And it's true: we could compute ~fib~ with a for-loop or by memoizing the recursive call. But the former approach entails mutable state---an oft-problematic tool, especially to for such a simple problem---and the latter leaves us [[https://twitter.com/importantshock/status/241173326846898176][with two problems]]. Uustalu and Vene's histomorphism provides a way out: we will /preserve the history/ of the values our fold computes, so that further recursive calls to compute past values become unnecessary. This style of recursion is called /course-of-value recursion/, since we record the /values/ evaluated as our fold function /courses/ through the structure.
 
-Rather than operate on an ~f a~, a data structure in the process of being folded, we'll operate on a more sophisticated structure, so that the argument to our fold function contains the history of all applications of the fold itself. Instead of a just a carrier value =a=, our =f= will contain a carrier value and a recursive, unrollable record of past invocations, to wit:
+Rather than operate on an ~f a~, a data structure in the process of being folded, we'll operate on a more sophisticated structure, so that the argument to our fold function contains the history of all applications of the fold itself. Instead of a just a carrier value =a=, our =f= will contain a carrier value and a recursive, unrollable record of past invocations:
 
 #+BEGIN_SRC haskell :tangle ../src/Part4.hs
 data Attr f a = Attr
-              { attribute :: a
-              , hole      :: f (Attr f a)
-              }
+  { attribute :: a
+  , hole      :: f (Attr f a)
+  }
 #+END_SRC
 
 We'll call this ~Attr~, since it's an 'attributed' version of ~Term~.
@@ -112,7 +112,7 @@ histo :: Functor f => CVAlgebra f a -> Term f -> a
 histo h = out >>> fmap someWorkerFunction >>> h
 #+END_SRC
 
-But what type should ~someWorkerFunction~ have? Well, we can ask GHC, thanks to one of its most useful features[fn:5]---type holes. By prepending an underscore to the use of ~worker~, we can allow the program compilation to continue as far as is possible---however, when the compilation process has finished, GHC will remind us where we used a type hole, and inform us of the type signature it inferred for ~_worker~. (As a full-time Haskell programmer, I use this feature nearly every day.) After adding this type hole, GHC yields the following type-hole message:
+What type should ~someWorkerFunction~ have? Well, we can ask GHC, thanks to one of its most useful features[fn:5]---type holes. By prepending an underscore to the use of ~worker~, we can allow the program compilation to continue as far as is possible---however, when the compilation process has finished, GHC will remind us where we used a type hole, and inform us of the type signature it inferred for ~_worker~. (As a full-time Haskell programmer, I use this feature nearly every day.) After adding this type hole, GHC yields the following type-hole message:
 
 #+BEGIN_SRC haskell :results output :exports both
 histo :: Functor f => CVAlgebra f a -> Term f -> a
@@ -121,9 +121,9 @@ histo h = out >>> fmap _worker >>> h
 
 #+RESULTS:
 : /Users/patrick/src/morphisms/src/Main.hs:14:24: error:
-:     • Found hole: ‘_worker’ with type :: Term f -> Attr f a: mystery :: Functor f => (f a -> a) -> Term f -> a
+:     • Found hole: ‘_worker’ with type :: Term f -> Attr f a
 
-Okay, that makes sense! We're operating on ~Term f~ values (lifted into this context by the ~fmap~ within ~histo~), and we need to yield an ~Attr f a~, so that the outside ~Term f~ can be transformed into an ~f (Attr f a)~ and then passed into the CV-algebra.
+This is quite a helpful error message from GHC, as it gives us a route forward. We're operating on ~Term f~ values (lifted into this context by the ~fmap~ within ~histo~), and we need to yield an ~Attr f a~, so that the outside ~Term f~ can be transformed into an ~f (Attr f a)~ and then passed into the CV-algebra. As such, we need to define a ~worker~ function, taking and returning values of the indicated type, that does the heavy lifting.
 
 An ~Attr f a~, as defined above, contains two values: a plain ~a~ type, and a recursive ~f (Attr f a)~ hole. Given a ~Term f~ and our ability to invoke both ~histo~ and ~worker~ recursively, we can build the ~Attr f a~ we need. Let's start by defining the skeleton of ~worker~: given a ~Term f~, called ~t~, it constructs an ~Attr~, containing two fields.
 
@@ -162,7 +162,7 @@ histo h = worker >>> attribute where
   mkAttr (a, b) = Attr a b
 #+END_SRC
 
-But what does this function /mean/? We've filled in all these type holes, and we have a working ~histo~ function, but why does it work? Why does this preserve the history?
+What does this function /mean/? We've filled in all these type holes, and we have a working ~histo~ function, but why does it work? Why does this preserve the history?
 
 The answer lies in ~worker~, in the ~id~ function that captures and preserves the ~Attr~ the worker function is operating on. If we omitted that expression, we would have a function equivalent to ~cata~---one that throws all its intermediate variables away while computing the result of a fold. But our worker function ensures that the result computed at each stage is not lost: as we flow, root-to-leaf, upwards through the data structure, we construct a new ~Attr~ value, which in turn contains the previous result, which itself preserves the result before that, and so on. Each step yields an up-to-date snapshot of what we have computed in the past.
 
@@ -212,7 +212,7 @@ two   = In (Next one)
 three = In (Next two)
 #+END_SRC
 
-For convenience's sake, we'll define functions that convert from standard ~Int~ values to foldable ~Term Nat~s, and vice versa. Again, these do not look particularly efficient, but please give me the benefit of the doubt.
+For convenience's sake, we'll define functions that convert from standard ~Int~ values to foldable ~Term Nat~s, and vice versa. Again, these do not look particularly efficient, but please suppress your skepticism for the moment.
 
 #+BEGIN_SRC haskell :tangle ../src/Part4.hs
 -- Convert from a natural number to its foldable equivalent, and vice versa.
@@ -225,7 +225,7 @@ compress Zero              = 0
 compress (Next (Attr _ x)) = 1 + compress x
 #+END_SRC
 
-While this is, at a glance, obviously less-efficient than using integers, it's not as bad as it seems. We only have three operations: increment, converting from zero, and converting to zero. Restricting our operations to these---rather than writing our own code for addition or subtraction, both of which are linear-time over the Peano numerals---means that operations on our ~Term Nat~ types are almost the same as hardware-time costs, barring GHC-specific operations. As such, the expressivity we yield with our foldable numbers is well worth the very slight costs.
+While this is, at a glance, obviously less-efficient than using integers, it's not as bad as it seems. We only have three operations: increment, converting from zero, and converting to zero. Restricting our operations to these---rather than writing our own code for addition or subtraction, both of which are linear-time over the Peano numerals---means that operations on our ~Term Nat~ types are almost the same as hardware-time costs, barring GHC-specific operations. As such, the expressivity we yield with our foldable numbers is well worth the slight associated costs.
 
 Given an amount (~amt~), we solve the change-making problem by converting that amount to a ~Term Nat~ with ~expand~, then invoking ~histo~ on it with a provided CV-algebra---let's call it ~go~. We'll define it in a where-clause below.
 
@@ -304,7 +304,7 @@ lookup cache n = lookup inner (n - 1) where (Next inner) = hole cache
 
 Something crucial to note is that the fixed-point accumulator---the ~f (Attr f a)~ parameter to our CV-algebra---/changes shape/ based on the functor ~f~ contained therein. Given an inductive functor ~Nat~ that defines the natural numbers, ~Nat (Attr Nat a)~ is isomorphic to ~[]~, the ordinary linked list: a ~Zero~ is the empty list, and a ~Next~ that contains a value (stored in ~Attr~'s ~attribute~ field) and a pointer to the next element of the list (stored in the ~hole :: Nat (Attr Nat a))~ field in the given ~Attr~). This is why our implementation of ~lookup~ is isomorphic to an implementation of ~!!~ over ~[]~---because they're the same thing.
 
-But what if we use a different ~Functor~ inside an ~Attr~? Well, then the shape of the resulting ~Attr~ changes. If we provide the list type---~[]~---we yield ~Attr [] a~, which is isomorphic to a rose tree---in Haskell terms, a ~Tree a~. If we use ~Either b~, then ~Attr (Either b) a~ is a nonempty list of computational steps, terminating in some ~b~ value. ~Attr~ is more than an "attributed ~Term~"---it is an /adaptive cache/ for a fold over /any type of data structure/. And that is truly wild.
+So what happens if we use a different ~Functor~ inside an ~Attr~? Well, then the shape of the resulting ~Attr~ changes. If we provide the list type---~[]~---we yield ~Attr [] a~, which is isomorphic to a rose tree---in Haskell terms, a ~Tree a~. If we use ~Either b~, then ~Attr (Either b) a~ is a nonempty list of computational steps, terminating in some ~b~ value. ~Attr~ is more than an "attributed ~Term~"---it is an /adaptive cache/ for a fold over /any type of data structure/. And that is truly wild.
 
 * Obsoleting Old Definitions
 
@@ -325,7 +325,7 @@ para f = histo (fmap worker >>> f) where
 
 * Controlling the Future with Futumorphisms
 
-Throughout this series, we can derive unfolds from a corresponding fold by "reversing the arrows"---viz., finding the function dual to the fold in question. And the same holds true for histomorphisms---the dual is very powerful. But, to find the dual of ~histo~, we must first find the dual of ~Attr~.
+Throughout this series, we can derive unfolds from a corresponding fold by "reversing the arrows"---viz., finding the function dual to the fold in question. And the same holds true for histomorphisms---the dual construct is useful and powerful. But, to find the dual of ~histo~, we must first find the dual of ~Attr~.
 
 Whereas our ~Attr~ structure held both an ~a~ and a recursive ~f (Attr f a)~ structure, its dual---~CoAttr~---holds /either/ an ~a~ value---we'll call that ~Automatic~---or a recursive ~f (CoAttr f a)~ value, which we'll call ~Manual~. (Put another way, since ~Attr~ was a product type, its dual is a sum type.) The definition follows:
 
@@ -400,7 +400,7 @@ Let's define a few rules for how a plant is generated. (These should, as I menti
 3. Plants choose randomly whether to fork, grow, or bloom.
 4. Every fork will contain one immediate bloom and two further stems.
 
-Rather than using integers to decide what action to take, which can get obscure very quickly, let's define another sum type, one that determines the next step in the growth of the plant.
+Rather than using integers to decide what action to take, which can quickly become obscure, let's define another sum type, one that determines the next step in the growth of the plant.
 
 #+BEGIN_SRC haskell :tangle ../src/Part4.hs
 data Action
