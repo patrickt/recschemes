@@ -219,7 +219,7 @@ prettyPrint (Index it idx)  = it <> P.brackets idx
 -- ab
 prettyPrint (Unary op it)   = (P.text op) <> it
 -- a op b
-prettyPrint (Binary l op r) = l <+> (P.text op) <+> r
+prettyPrint (Binary l op r) = l <+> P.text op <+> r
 -- (a)
 prettyPrint (Paren exp)     = P.parens exp
 #+END_SRC
@@ -267,7 +267,7 @@ Catamorphisms also /compose/: given an algebra over a given type
 cata (f >>> In) >>> cata g ≍ cata (f >>> g)
 #+END_SRC
 
-That is to say, the result of composing two separate catamorphisms is equivalent to a single catamorphism using the combination of the contained algebras. This is amazing, almost magically so: the composition law all
+That is to say, the result of composing two separate catamorphisms is equivalent to a single catamorphism using the combination of the contained algebras. This is amazing, almost magically so: the composition law means that when we encounter two successive calls to ~cata~, we can replace them with a single call that uses, as its algebra, the composition of the previous calls' algebras.
 
 [fn:7] The ~≍~ symbol is Unicode's ~EQUIVALENT TO~ glyph, and is read as such. This wouldn't be valid Haskell syntax, unless you defined a ~≍~ function of your own.
 
@@ -339,7 +339,7 @@ Thanks to Colin Barrett and Rob Rix for reading drafts of this essay, and thanks
 
 On a personal note, I am deeply grateful for all the comments I've received thus far, both complimentary and constructive.
 
-/In part 3, we explore the limits of catamorphisms, and address these limits with [[http://blog.sumtypeofway.com/recursion-schemes-part-iii-folds-in-context/][paramorphisms and apomorphisms]]./
+/In part 3, we explore the limits of catamorphisms, and address these limits with [[https://blog.sumtypeofway.com/posts/recursion-schemes-part-3.html][paramorphisms and apomorphisms]]./
 
 #+BEGIN_SRC haskell :exports none :tangle ../test/Part2Spec.hs
 module Part2Spec (spec) where
