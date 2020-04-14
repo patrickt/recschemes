@@ -231,7 +231,7 @@ Now we have a coalgebra (the parser) and an algebra (the evaluator, in continuat
 #+END_SRC
 
 #+RESULTS:
-: hylo evalRPN parseRPN 
+: hylo evalRPN parseRPN
 :   :: String -> Stack -> Stack
 
 That makes sense: the =String= parameter is our input, and the =Stack= parameter is the initial value of the RPN machine's stack. So now we can build a top-level =rpn= function that takes a string, invoking the result of =hylo= with the provided string and an empty initial stack:
@@ -339,7 +339,7 @@ As with the previous incarnation of this function, we'll use continuation-passin
 type Cont = Result -> Result
 #+END_SRC
 
-We'll start by rewriting =parseToken=. Rather than returning a plain =Token= and failing at runtime if provided an invalid numeric value, we'll use =readMaybe= to yield a =Maybe Int=, returning an =Either= that contains an early-termination function over =Result=s or an integer wrapped by a =Lit= constructor
+We'll start by rewriting =parseToken=. Rather than returning a plain =Token= and failing at runtime if provided an invalid numeric value, we'll use =readMaybe= to yield a =Maybe Int=, returning an =Either= that contains an early-termination function over =Result= values or an integer wrapped by a =Lit= constructor
 
 #+BEGIN_SRC haskell :tangle ../src/Part5.hs
 safeToken :: String -> Either Cont Token
@@ -388,15 +388,15 @@ Other examples of using Elgot algebras are few and far between, but the excellen
 
 * Reversing the Arrows, Again
 
-In the defintion of =elgot= above, we used =ORRRR= to handle the Either case: in performing =id= (no operation) on a =Left= value and recursing on a =Right= value, we gained a clarity of definition---but more importantly, we make it easy to reverse the arrows. Every time we reverse the arrows on a fold, we yield the corresponding unfold: but here, reversing the arrows on an Elgot coalgebra, we yield a hylomorphism that can short-circuit during /destruction/, rather than construction.
+In the defintion of =elgot= above, we used =|||= to handle the Either case: in performing =id= (no operation) on a =Left= value and recursing on a =Right= value, we gained a clarity of definition---but more importantly, we make it easy to reverse the arrows. Every time we reverse the arrows on a fold, we yield the corresponding unfold: but here, reversing the arrows on an Elgot coalgebra, we yield a hylomorphism that can short-circuit during /destruction/, rather than construction.
 
-We know how to reverse most of the operations in the above definition: =alg= becomes =coalg= and vice versa, =>>>= becomes =<<<= and vice versa, and =id= stays the same, being its own dual. The =ORRRR= may be slightly less obvious, but if we remember that the tuple value (=(a, b)=) is dual to =Either a b=, we yield the =&&&= operator, pronounced 'fanout':
+We know how to reverse most of the operations in the above definition: =alg= becomes =coalg= and vice versa, =>>>= becomes =<<<= and vice versa, and =id= stays the same, being its own dual. The =|||= may be slightly less obvious, but if we remember that the tuple value (=(a, b)=) is dual to =Either a b=, we yield the =&&&= operator, pronounced 'fanout':
 
 #+BEGIN_SRC haskell
 (&&&) :: (a -> b) -> (a -> c) -> (a -> (b, c))
 #+END_SRC
 
-Whereas =ORRRR= took two functions and used one or either of them to deconstruct an =Either=, =&&&= takes two functions and uses both of them to construct a tuple: given one of type =a -> b= and the other of type =a -> c=, we can apply them both on a given =a= to yield a tuple of type =(b, c)=. Again, reading the triple-ampersand as 'and' can be a useful memonic: =f &&& g= returns a function that uses both =f= 'and' =g=.
+Whereas =|||= took two functions and used one or either of them to deconstruct an =Either=, =&&&= takes two functions and uses both of them to construct a tuple: given one of type =a -> b= and the other of type =a -> c=, we can apply them both on a given =a= to yield a tuple of type =(b, c)=. Again, reading the triple-ampersand as 'and' can be a useful memonic: =f &&& g= returns a function that uses both =f= 'and' =g=.
 
 Now we know how to reverse every operation in =elgot=. Let's do so:
 
