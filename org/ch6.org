@@ -56,7 +56,7 @@ There is a deep similarity between these three types, though it may not appear s
 
 * Comonads for the Impatient
 
-The theory behind comonads is rich and deep, and I have neither room nor time to give a complete outline thereof. I recommend reading Bartosz Milewski's [[https://bartoszmilewski.com/2017/01/02/comonads/][excellent and rigorous overview]] of how to derive and define comonadic structures, as well as Gabriel Gonzales's [[http://www.haskellforall.com/2013/02/you-could-have-invented-comonads.html][application of comonadic abstractions]] to real-world problems. For our purposes, it suffices to define the ~Comonad~ typeclass and outline its interface.
+The theory behind comonads is rich and deep, and I have neither room nor time to give a complete outline thereof. I recommend reading Bartosz Milewski's [[https://bartoszmilewski.com/2017/01/02/comonads/][excellent and rigorous overview]] of how to derive and define comonadic structures, as well as Gabriella Gonzales's [[http://www.haskellforall.com/2013/02/you-could-have-invented-comonads.html][application of comonadic abstractions]] to real-world problems. For our purposes, it suffices to define the ~Comonad~ typeclass and outline its interface.
 
 #+BEGIN_SRC haskell
 class Functor w => Comonad w where
